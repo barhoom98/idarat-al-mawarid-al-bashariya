@@ -374,12 +374,45 @@ function yearsOfService(emp, at) {
   if (!emp.hire_date) return 0;
   return (Date.parse(at) - Date.parse(emp.hire_date)) / (365.25 * 864e5);
 }
-function leaveBalance(ctx, emp, year) {
+/* Month-ends e with after < e <= upto (annual leave accrues at each month end, as in the company's leave sheet). */
+function monthEndsBetween(after, upto) {
+  if (!after || !upto || upto <= after) return 0;
+  let [y, m] = after.split('-').map(Number), n = 0;
+  for (let k = 0; k < 1200; k++) {
+    const e = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+    if (e > upto) break;
+    if (e > after) n++;
+    m++; if (m > 12) { m = 1; y++; }
+  }
+  return n;
+}
+function annualDays(ctx, emp, at) {
+  if (Number(emp.annual_days) > 0) return Number(emp.annual_days);
+  return yearsOfService(emp, at) >= ctx.settings.senior_years ? ctx.settings.annual_leave_senior : ctx.settings.annual_leave;
+}
+const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+/* With an opening balance (leave_open_balance as of leave_open_date): balance = opening + monthly accrual since then − annual leave taken after it.
+   Without one: the calendar-year entitlement (+ legacy carry) − annual leave taken that year. */
+function leaveBalance(ctx, emp, year, today) {
   const st = ctx.settings;
-  const ent = (yearsOfService(emp, year + '-12-31') >= st.senior_years ? st.annual_leave_senior : st.annual_leave) + (Number(emp.carry) || 0);
-  const used = (type) => ctx.leaves.filter((l) => l.employee_id === emp.id && l.status === 'approved' && l.type === type && l.start.slice(0, 4) === String(year)).reduce((s, l) => s + (Number(l.days) || 0), 0);
-  const annual = used('annual'), sick = used('sick');
-  return { ent, annual, left: ent - annual, sick, sickLeft: st.sick_leave - sick, unpaid: used('unpaid'), emergency: used('emergency') };
+  const used = (type, pred) => ctx.leaves.filter((l) => l.employee_id === emp.id && l.status === 'approved' && l.type === type && pred(l)).reduce((s, l) => s + (Number(l.days) || 0), 0);
+  const inYear = (l) => l.start.slice(0, 4) === String(year);
+  const res = { sick: used('sick', inYear), unpaid: used('unpaid', inYear), emergency: used('emergency', inYear) };
+  res.sickLeft = st.sick_leave - res.sick;
+  const asOf = today && today.slice(0, 4) <= String(year) ? today : year + '-12-31';
+  res.perYear = annualDays(ctx, emp, asOf);
+  if (emp.leave_open_date) {
+    const open = emp.leave_open_date;
+    res.mode = 'open'; res.open = open; res.base = Number(emp.leave_open_balance) || 0;
+    res.earned = r2((res.perYear * monthEndsBetween(open, asOf)) / 12);
+    res.annual = used('annual', (l) => l.start > open);
+    res.left = r2(res.base + res.earned - res.annual);
+    return res;
+  }
+  res.mode = 'year'; res.base = Number(emp.carry) || 0; res.earned = res.perYear;
+  res.annual = used('annual', inYear);
+  res.left = r2(res.base + res.earned - res.annual);
+  return res;
 }
 
 /* Fingerprint export parsing: ZKTeco attlog (.dat/.txt), CSV, or rows from Excel. */
@@ -817,13 +850,17 @@ function parsePunchRows(rows, preferOrder) {
 
   /* ---------- LEAVES ---------- */
   function renderLeaves() {
-    let out = head('الإجازات', 'الرصيد السنوي ' + int(S.settings.annual_leave) + ' يوماً، و' + int(S.settings.annual_leave_senior) + ' يوماً بعد ' + int(S.settings.senior_years) + ' سنوات خدمة. المرضية ' + int(S.settings.sick_leave) + ' يوماً بأجر كامل. تُحسب أيام العمل فقط.', '<button class="btn btn-primary" data-act="leave-new">تسجيل إجازة</button>');
+    let out = head('الإجازات', 'الإجازة السنوية ' + int(S.settings.annual_leave) + ' يوماً، و' + int(S.settings.annual_leave_senior) + ' يوماً بعد ' + int(S.settings.senior_years) + ' سنوات خدمة، وتُكتسب شهرياً بنهاية كل شهر. المرضية ' + int(S.settings.sick_leave) + ' يوماً بأجر كامل. تُحسب أيام العمل فقط.', '<button class="btn btn-primary" data-act="leave-new">تسجيل إجازة</button>');
     if (!S.employees.length) return out + card('', noEmps());
     const y = UI.leaveYear, c = ctx();
-    const bal = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th class="n">المستحق</th><th class="n">المستخدم</th><th class="n">المتبقي</th><th style="min-width:8rem"></th><th class="n">مرضية</th><th class="n">طارئة</th><th class="n">بدون راتب</th></tr></thead><tbody>' +
-      activeEmps().map((e) => { const b = leaveBalance(c, e, y); const pct = b.ent ? Math.min(100, (b.annual / b.ent) * 100) : 0; return '<tr><td>' + esc(e.name) + '</td><td class="n">' + int(b.ent) + '</td><td class="n">' + int(b.annual) + '</td><td class="n"><b class="' + (b.left < 0 ? 'due-bad' : '') + '">' + int(b.left) + '</b></td><td><div class="bar"><i style="width:' + pct.toFixed(0) + '%"></i></div></td><td class="n">' + int(b.sick) + ' / ' + int(S.settings.sick_leave) + '</td><td class="n">' + int(b.emergency) + '</td><td class="n">' + int(b.unpaid) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    const num = (v) => { const n = r2(v); return (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 2 }); };
+    const bal = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th class="n">السنوية (يوم/سنة)</th><th class="n">الرصيد المدوّر</th><th class="n">المكتسب بعده</th><th class="n">المأخوذ</th><th class="n">الرصيد الحالي</th><th class="n">مرضية</th><th class="n">طارئة</th><th class="n">بدون راتب</th></tr></thead><tbody>' +
+      activeEmps().map((e) => { const b = leaveBalance(c, e, y, todayStr());
+        const baseCell = b.mode === 'open' ? '<b class="num">' + num(b.base) + '</b><div class="muted" style="font-size:var(--t-xs)">كما في ' + esc(dDate(b.open)) + '</div>' : (b.base ? num(b.base) : '—');
+        const earnedCell = b.mode === 'open' ? num(b.earned) : num(b.earned) + '<div class="muted" style="font-size:var(--t-xs)">لسنة ' + esc(y) + '</div>';
+        return '<tr><td>' + esc(e.name) + '</td><td class="n">' + int(b.perYear) + '</td><td class="n">' + baseCell + '</td><td class="n">' + earnedCell + '</td><td class="n">' + num(b.annual) + '</td><td class="n"><b class="num ' + (b.left < 0 ? 'due-bad' : '') + '" style="font-size:var(--t-md)">' + num(b.left) + '</b></td><td class="n">' + int(b.sick) + ' / ' + int(S.settings.sick_leave) + '</td><td class="n">' + int(b.emergency) + '</td><td class="n">' + int(b.unpaid) + '</td></tr>'; }).join('') + '</tbody></table></div>';
     const years = [...new Set([today0.slice(0, 4), String(Number(today0.slice(0, 4)) + 1), ...S.leaves.map((l) => l.start.slice(0, 4))])].sort().reverse();
-    out += card('أرصدة الإجازات', bal, { flush: true, actions: '<label class="field" style="min-width:7rem"><select id="leave-year" data-ch="leave-year" aria-label="السنة">' + years.map((x) => '<option' + (x === y ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label>' });
+    out += card('أرصدة الإجازات', bal, { flush: true, note: 'الرصيد الحالي = الرصيد المدوّر + ما يُكتسب بنهاية كل شهر بعده − الإجازات السنوية المعتمدة بعده. الموظف بلا رصيد مدوّر يُحسب له رصيد السنة كاملة.', actions: '<label class="field" style="min-width:7rem"><select id="leave-year" data-ch="leave-year" aria-label="السنة">' + years.map((x) => '<option' + (x === y ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label>' });
     const list = S.leaves.filter((l) => (!UI.leaveStatus || l.status === UI.leaveStatus) && (!UI.leaveEmp || l.employee_id === UI.leaveEmp)).sort((a, b) => b.start.localeCompare(a.start));
     const tools = '<div class="toolbar"><label class="field"><span>الموظف</span><select id="leave-emp" data-ch="leave-emp">' + empOpts(UI.leaveEmp, 'الكل', true) + '</select></label><label class="field"><span>الحالة</span><select id="leave-status" data-ch="leave-status">' + opts(LEAVE_S, UI.leaveStatus, 'الكل') + '</select></label></div>';
     const tbl = list.length ? '<div class="tbl-wrap" style="margin-top:.8rem"><table class="tbl"><thead><tr><th>الموظف</th><th>النوع</th><th>من</th><th>إلى</th><th class="n">أيام العمل</th><th>الحالة</th><th>ملاحظة</th><th></th></tr></thead><tbody>' +
@@ -1061,7 +1098,9 @@ function parsePunchRows(rows, preferOrder) {
       body: '<div class="form-grid"><label class="field"><span>الاسم الكامل</span><input type="text" name="name" value="' + esc(e.name || '') + '" required></label><label class="field"><span>المسمى الوظيفي</span><input type="text" name="title" value="' + esc(e.title || '') + '" placeholder="مثل: محاسب، مدقق ضريبي"></label>' +
         '<label class="field"><span>رقم البصمة على الجهاز</span><input type="text" name="fp_id" inputmode="numeric" value="' + esc(e.fp_id || '') + '"></label><label class="field"><span>تاريخ التعيين</span><input type="date" name="hire_date" value="' + esc(e.hire_date || '') + '"></label>' +
         '<label class="field"><span>الراتب الأساسي (دينار)</span><input type="number" name="basic_salary" step="0.001" min="0" value="' + esc(e.basic_salary || '') + '"></label><label class="field"><span>العلاوات الثابتة (دينار)</span><input type="number" name="allowances" step="0.001" min="0" value="' + esc(e.allowances || '') + '"></label>' +
-        '<label class="field"><span>رصيد إجازات مُرحّل (يوم)</span><input type="number" name="carry" step="0.5" value="' + esc(e.carry || '') + '"></label><label class="field"><span>الهاتف</span><input type="tel" name="phone" value="' + esc(e.phone || '') + '"></label>' +
+        '<label class="field"><span>الإجازة السنوية (يوم/سنة)</span><input type="number" name="annual_days" min="0" step="1" value="' + esc(e.annual_days || '') + '" placeholder="تلقائي: ' + int(S.settings.annual_leave) + ' أو ' + int(S.settings.annual_leave_senior) + '"></label>' +
+        '<label class="field"><span>الرصيد المدوّر (يوم)</span><input type="number" name="leave_open_balance" step="0.5" value="' + esc(e.leave_open_date ? (e.leave_open_balance ?? '') : '') + '"></label><label class="field"><span>الرصيد المدوّر كما في تاريخ</span><input type="date" name="leave_open_date" value="' + esc(e.leave_open_date || '') + '"></label>' +
+        '<label class="field"><span>الهاتف</span><input type="tel" name="phone" value="' + esc(e.phone || '') + '"></label>' +
         '<label class="field"><span>الترتيب في القوائم</span><input type="number" name="order" min="0" value="' + esc(e.order || '') + '"></label>' +
         '<div class="field full" style="gap:.5rem"><label class="check"><input type="checkbox" name="ssc"' + (e.ssc !== false ? ' checked' : '') + '> مشترك بالضمان الاجتماعي</label><label class="check"><input type="checkbox" name="track"' + (e.track !== false ? ' checked' : '') + '> يخضع للبصمة والحضور</label><label class="check"><input type="checkbox" name="active"' + (e.active !== false ? ' checked' : '') + '> موظف فعّال</label></div>' +
         '<label class="field full"><span>ملاحظات</span><textarea name="notes">' + esc(e.notes || '') + '</textarea></label></div>',
@@ -1071,7 +1110,7 @@ function parsePunchRows(rows, preferOrder) {
         req(v.name, 'أدخل اسم الموظف.');
         if (v.fp_id && S.employees.some((x) => x.id !== e.id && normId(x.fp_id) === normId(v.fp_id))) throw 'رقم البصمة مستخدم لموظف آخر.';
         const id = isNew ? newId('emp-') : e.id;
-        const doc = { name: v.name, title: v.title || '', fp_id: v.fp_id ? normId(v.fp_id) : '', hire_date: v.hire_date || '', basic_salary: Number(v.basic_salary) || 0, allowances: Number(v.allowances) || 0, carry: Number(v.carry) || 0, phone: v.phone || '', order: Number(v.order) || (isNew ? S.employees.length + 1 : e.order || 0), ssc: !!v.ssc, track: !!v.track, active: !!v.active, notes: v.notes || '' };
+        const doc = { name: v.name, title: v.title || '', fp_id: v.fp_id ? normId(v.fp_id) : '', hire_date: v.hire_date || '', basic_salary: Number(v.basic_salary) || 0, allowances: Number(v.allowances) || 0, carry: Number(e.carry) || 0, annual_days: Number(v.annual_days) || 0, leave_open_balance: v.leave_open_balance === '' ? 0 : Number(v.leave_open_balance) || 0, leave_open_date: v.leave_open_balance === '' && !v.leave_open_date ? '' : v.leave_open_date || todayStr(), phone: v.phone || '', order: Number(v.order) || (isNew ? S.employees.length + 1 : e.order || 0), ssc: !!v.ssc, track: !!v.track, active: !!v.active, notes: v.notes || '' };
         await put('employees/' + id, doc);
         toast('حُفظت بيانات ' + v.name);
       },
