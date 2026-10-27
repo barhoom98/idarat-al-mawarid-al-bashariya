@@ -1,0 +1,6 @@
+bridge/config.ini
+bridge/state.json
+bridge/state.json.tmp
+bridge/bridge.log*
+__pycache__/
+.DS_Store
