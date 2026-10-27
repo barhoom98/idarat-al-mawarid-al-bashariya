@@ -177,6 +177,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
 .toast { position: fixed; bottom: max(16px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--char); color: var(--char-ink); padding: .6rem 1.1rem; border-radius: var(--r-sm); font-size: var(--t-sm); z-index: 60; box-shadow: 0 8px 24px rgb(0 0 0 / .25); max-width: calc(100% - 32px); }
 .toast.bad { background: var(--bad-soft); color: var(--bad); border: 1px solid var(--bad); }
 #print-root { display: none; }
+.doc-wrap { background: #E4E1DA; border-radius: var(--r-sm); padding: 14px; overflow: auto; }
+.doc-wrap .lvdoc { width: 186mm; margin: 0 auto; padding: 10mm; box-shadow: 0 2px 12px rgb(0 0 0 / .18); }
 @media print { body.printing > *:not(#print-root) { display: none !important; } body.printing #print-root { display: block; } body.printing { background: #fff; } }
 .field small { font-size: var(--t-xs); font-weight: 400; }
 
@@ -502,6 +504,7 @@ function parsePunchRows(rows, preferOrder) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
+  const APP_VERSION = '2026.10.27-8';
   const LOC = 'ar-JO-u-nu-latn';
   const F = {
     date: new Intl.DateTimeFormat(LOC, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
@@ -703,7 +706,7 @@ function parsePunchRows(rows, preferOrder) {
       '<div><b>الدوام</b></div>' +
       (full.length ? '<div>' + esc(full.map((d) => DAYNAME[d]).join('، ')) + ': <span class="num">' + esc(t12(s[6].start)) + ' – ' + esc(t12(s[6].end)) + '</span></div>' : '') +
       other.map((d) => '<div>' + DAYNAME[d] + ': <span class="num">' + esc(t12(s[d].start)) + ' – ' + esc(t12(s[d].end)) + '</span></div>').join('') +
-      (off.length ? '<div>العطلة: ' + esc(off.map((d) => DAYNAME[d]).join('، ')) + '</div>' : '');
+      (off.length ? '<div>العطلة: ' + esc(off.map((d) => DAYNAME[d]).join('، ')) + '</div>' : '') + '<div style="margin-top:.5rem;opacity:.7">الإصدار <span class="num">' + APP_VERSION + '</span></div>';
   }
   function render(force) {
     renderNav();
@@ -1481,19 +1484,19 @@ function parsePunchRows(rows, preferOrder) {
       const f = (v) => (v < 0 ? '−' : '') + Math.abs(r2(v)).toLocaleString('en-US', { maximumFractionDigits: 2 });
       balance = '<table class="bal"><tr><th>رصيد الإجازات قبل هذه الإجازة</th><th>مدة الإجازة</th><th>الرصيد بعد الإجازة</th></tr><tr><td>' + daysAr(before, f(before)) + '</td><td>' + daysAr(Number(l.days), int(l.days)) + '</td><td' + (after < 0 ? ' class="neg"' : '') + '>' + daysAr(after, f(after)) + '</td></tr></table>';
     }
-    const css = '@page{size:A4;margin:12mm}#print-root{font-family:"IBM Plex Sans Arabic","Traditional Arabic",Arial,sans-serif;color:#1f2023;font-size:15px;line-height:1.75;direction:rtl}' +
-      '#print-root .sheet{max-width:186mm;margin:0 auto' + (pre ? ';padding-top:' + Math.max(0, Number(st.print_top_mm) || 0) + 'mm' : '') + '}' +
-      '#print-root header{display:flex;align-items:center;gap:14px;border-bottom:3px solid #C9A24E;padding-bottom:10px}#print-root header img{width:66px;height:66px;background:#26282C;border-radius:10px;padding:7px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-      '#print-root header h1{margin:0;font-size:22px;line-height:1.4}#print-root .en{margin:0;color:#85641F;font-size:13px;font-family:Arial,sans-serif}' +
-      '#print-root h2{text-align:center;margin:18px 0 2px;font-size:22px}#print-root .sub{text-align:center;margin:0 0 10px;color:#444}' +
-      '#print-root .ref{display:flex;justify-content:space-between;font-size:13px;color:#444;margin:6px 0 10px}' +
-      '#print-root table{width:100%;border-collapse:collapse;margin:8px 0}#print-root th,#print-root td{border:1px solid #bfbab0;padding:7px 10px;text-align:right}' +
-      '#print-root .info th{background:#f5f2ea;width:32%;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-      '#print-root .bal th{background:#26282C;color:#fff;text-align:center;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}#print-root .bal td{text-align:center;font-weight:700;font-size:17px}#print-root .bal .neg{color:#AE3636}' +
-      '#print-root .req{margin:16px 0;text-align:justify}#print-root .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:44px;text-align:center}' +
-      '#print-root .sign div{border-top:1px solid #444;padding-top:6px;font-weight:600}#print-root .stamp{margin:34px auto 0;width:120px;height:120px;border:1px dashed #999;border-radius:50%;display:grid;place-items:center;color:#888;font-size:13px}' +
-      '#print-root footer{margin-top:26px;color:#777;font-size:12px;text-align:center}';
-    return '<style>' + css + '</style><div class="sheet">' +
+    const css = '@page{size:A4;margin:12mm}.lvdoc{background:#fff;font-family:"IBM Plex Sans Arabic","Traditional Arabic",Arial,sans-serif;color:#1f2023;font-size:15px;line-height:1.75;direction:rtl}' +
+      '.lvdoc .sheet{max-width:186mm;margin:0 auto' + (pre ? ';padding-top:' + Math.max(0, Number(st.print_top_mm) || 0) + 'mm' : '') + '}' +
+      '.lvdoc header{display:flex;align-items:center;gap:14px;border-bottom:3px solid #C9A24E;padding-bottom:10px}.lvdoc header img{width:66px;height:66px;background:#26282C;border-radius:10px;padding:7px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.lvdoc header h1{margin:0;font-size:22px;line-height:1.4}.lvdoc .en{margin:0;color:#85641F;font-size:13px;font-family:Arial,sans-serif}' +
+      '.lvdoc h2{text-align:center;margin:18px 0 2px;font-size:22px}.lvdoc .sub{text-align:center;margin:0 0 10px;color:#444}' +
+      '.lvdoc .ref{display:flex;justify-content:space-between;font-size:13px;color:#444;margin:6px 0 10px}' +
+      '.lvdoc table{width:100%;border-collapse:collapse;margin:8px 0}.lvdoc th,.lvdoc td{border:1px solid #bfbab0;padding:7px 10px;text-align:right}' +
+      '.lvdoc .info th{background:#f5f2ea;width:32%;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.lvdoc .bal th{background:#26282C;color:#fff;text-align:center;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}.lvdoc .bal td{text-align:center;font-weight:700;font-size:17px}.lvdoc .bal .neg{color:#AE3636}' +
+      '.lvdoc .req{margin:16px 0;text-align:justify}.lvdoc .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:44px;text-align:center}' +
+      '.lvdoc .sign div{border-top:1px solid #444;padding-top:6px;font-weight:600}.lvdoc .stamp{margin:34px auto 0;width:120px;height:120px;border:1px dashed #999;border-radius:50%;display:grid;place-items:center;color:#888;font-size:13px}' +
+      '.lvdoc footer{margin-top:26px;color:#777;font-size:12px;text-align:center}';
+    return '<div class="lvdoc"><style>' + css + '</style><div class="sheet">' +
       (pre ? '' : '<header><img src="' + MARK + '" alt=""><div><h1>' + esc(st.company_ar) + '</h1><p class="en">' + esc(st.company_en) + '</p></div></header>') +
       '<h2>نموذج إجازة</h2><p class="sub">إجازة ' + esc(type) + ' — ' + esc((LEAVE_S[l.status] || ['—'])[0]) + '</p>' +
       '<div class="ref"><span>الرقم المرجعي: ' + esc(ref) + '</span><span>تاريخ الإصدار: ' + esc(issuedAt()) + '</span></div>' +
@@ -1504,12 +1507,62 @@ function parsePunchRows(rows, preferOrder) {
       '<p class="req">أرجو الموافقة على منحي إجازة ' + esc(type) + ' لمدة (' + int(l.days) + ') ' + (Number(l.days) >= 3 && Number(l.days) <= 10 ? 'أيام' : 'يوم') + ' عمل، اعتباراً من يوم ' + esc(fullDay(l.start)) + ' ولغاية يوم ' + esc(fullDay(l.end)) + '، على أن أباشر عملي يوم ' + esc(fullDay(ret)) + '.</p>' +
       '<div class="sign"><div>توقيع الموظف</div><div>المدير المباشر</div><div>اعتماد المدير العام</div></div>' +
       '<div class="stamp">ختم الشركة</div>' +
-      (pre ? '' : '<footer>' + esc(st.company_ar) + ' — صادر من نظام الموارد البشرية</footer>') + '</div>';
+      (pre ? '' : '<footer>' + esc(st.company_ar) + ' — صادر من نظام الموارد البشرية</footer>') + '</div></div>';
+  }
+  let currentDoc = null;
+  function previewDoc(doc) {
+    currentDoc = doc;
+    openModal({
+      title: esc(doc.title), wide: true,
+      body: '<div class="doc-wrap">' + doc.html + '</div><p class="note" style="margin:0">إذا ما ظهرت شاشة الطباعة على الهاتف، اضغط «حفظ PDF / مشاركة» واطبع من قائمة المشاركة.</p>',
+      footLeft: '<div class="actions"><button type="button" class="btn btn-primary" data-act="doc-print">طباعة</button><button type="button" class="btn" data-act="doc-pdf">حفظ PDF / مشاركة</button></div>',
+    });
+    // fit the A4 sheet to the dialog width (phones show it scaled down)
+    requestAnimationFrame(() => {
+      const wrap = modalRoot.querySelector('.doc-wrap'), sheet = wrap && wrap.querySelector('.lvdoc');
+      if (!sheet) return;
+      sheet.style.zoom = 1;
+      sheet.style.zoom = String(Math.min(1, (wrap.clientWidth - 28) / sheet.offsetWidth));
+    });
   }
   function printLeave(id) {
     const l = S.leaves.find((x) => x.id === id);
     if (!l) { toast('لم يتم العثور على الإجازة.', true); return; }
-    printDoc(leaveDocHtml(l));
+    previewDoc({ title: 'نموذج إجازة — ' + empName(l.employee_id), name: 'نموذج-إجازة-' + empName(l.employee_id).replace(/\s+/g, '-') + '-' + l.start, html: leaveDocHtml(l) });
+  }
+  let pdfP = null;
+  function loadHtml2Pdf() {
+    if (window.html2pdf) return Promise.resolve(window.html2pdf);
+    const srcs = ['https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js'];
+    return pdfP || (pdfP = new Promise((res, rej) => {
+      const at = (i) => {
+        if (i >= srcs.length) { pdfP = null; rej(new Error('html2pdf')); return; }
+        const el = document.createElement('script'); el.src = srcs[i];
+        el.onload = () => (window.html2pdf ? res(window.html2pdf) : at(i + 1));
+        el.onerror = () => at(i + 1);
+        document.head.appendChild(el);
+      };
+      at(0);
+    }));
+  }
+  async function docPdf() {
+    const d = currentDoc; if (!d) return;
+    toast('جارٍ تجهيز ملف PDF…');
+    let h2p;
+    try { h2p = await loadHtml2Pdf(); } catch (e) { toast('تعذّر تحميل أداة PDF. تأكد من الإنترنت ثم أعد المحاولة.', true); return; }
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;background:#fff';
+    holder.innerHTML = d.html;
+    document.body.appendChild(holder);
+    try {
+      const blob = await h2p().set({ margin: [6, 6, 6, 6], filename: d.name + '.pdf', image: { type: 'jpeg', quality: 0.96 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['avoid-all'] } }).from(holder.querySelector('.lvdoc')).outputPdf('blob');
+      const file = new File([blob], d.name + '.pdf', { type: 'application/pdf' });
+      if (/iPhone|iPad|Android/i.test(navigator.userAgent) && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: d.title }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      save(d.name + '.pdf', blob);
+    } catch (e) { toast('تعذّر إنشاء ملف PDF.', true); }
+    finally { holder.remove(); }
   }
 
   /* ---------- actions ---------- */
@@ -1528,6 +1581,8 @@ function parsePunchRows(rows, preferOrder) {
     },
     'leave-new': () => leaveForm(null),
     'leave-print': (el) => printLeave(el.dataset.id),
+    'doc-print': () => { if (currentDoc) printDoc(currentDoc.html); },
+    'doc-pdf': () => docPdf(),
     'leave-edit': (el) => leaveForm(S.leaves.find((l) => l.id === el.dataset.id)),
     'leave-set': async (el) => {
       const l = S.leaves.find((x) => x.id === el.dataset.id); if (!l) return;
@@ -1759,7 +1814,12 @@ function parsePunchRows(rows, preferOrder) {
     if (error) { showLogin(/invalid/i.test(error.message) ? 'البريد الإلكتروني أو كلمة السر غير صحيحة.' : 'تعذّر تسجيل الدخول. تأكد من الإنترنت ثم أعد المحاولة.'); return; }
     startApp(data.session);
   });
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloading) { reloading = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js').then((reg) => reg.update()).catch(() => {});
+  }
   (async () => {
     if (!window.supabase || !CFG.url) { showLogin('تعذّر تحميل النظام. تأكد من الاتصال بالإنترنت ثم أعد فتح التطبيق.'); return; }
     sb = window.supabase.createClient(CFG.url, CFG.anonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });

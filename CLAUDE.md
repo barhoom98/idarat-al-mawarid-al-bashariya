@@ -8,7 +8,8 @@ Internal HR web app for شركة الألفية للخدمات الضريبية 
 - Static single-page app, no build step: `index.html` (all CSS + JS inline), `config.js`, `sw.js`, `manifest.webmanifest`, `icons/`.
 - Hosted on GitHub Pages from `main` (root): https://barhoom98.github.io/idarat-al-mawarid-al-bashariya/ — pushing to `main` deploys.
 - Backend: Supabase project `millennium-hr` (ref `nxhlxwpwpyicyprnsdfp`, eu-central-1). Client: supabase-js 2.49.4 UMD from jsDelivr (fallbacks in `index.html`).
-- After changing `index.html` or other shell files, bump `CACHE` in `sw.js` so installed phones pick up the new version.
+- After changing `index.html` or other shell files, bump `CACHE` in `sw.js` and `APP_VERSION` in `index.html` (shown in the side rail, so the owner can confirm they have the latest). The page reloads itself once when a new service worker takes over.
+- Printing: documents render as `.lvdoc` HTML, shown in a preview dialog; «طباعة» prints only `#print-root`, «حفظ PDF / مشاركة» uses html2pdf.js (cdnjs) and the share sheet on phones.
 
 ## Data model (Supabase, schema public)
 - Document tables `(id text pk, data jsonb, updated_at)`: `settings` (row `main`), `employees`, `leaves`, `clients`, `tasks`, `payroll` (id = `YYYY-MM`; `locked`, `rows` snapshot, `adj` per employee).
