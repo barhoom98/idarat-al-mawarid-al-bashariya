@@ -116,6 +116,24 @@ input:focus, select:focus, textarea:focus { border-color: var(--gold); outline: 
 .toolbar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: end; }
 .toolbar .field { flex: 1 1 10rem; max-width: 16rem; }
 .toolbar .grow { flex: 2 1 14rem; max-width: none; }
+.cpick { position: relative; }
+.cpick-q { padding-inline-end: 2rem !important; }
+.cpick-q::-webkit-search-cancel-button { display: none; }
+.cpick-x { position: absolute; inset-inline-end: .3rem; top: 50%; transform: translateY(-50%); width: 1.6rem; height: 1.6rem; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 1.15rem; line-height: 1; cursor: pointer; display: none; }
+.cpick-x:hover { background: var(--sheet-2); color: var(--ink); }
+.cpick.has-v .cpick-x { display: grid; place-items: center; }
+.cpick-list { position: absolute; inset-inline: 0; top: calc(100% + 4px); z-index: 30; max-height: min(18rem, 50vh); overflow: auto; overscroll-behavior: contain; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sm); box-shadow: 0 10px 28px rgb(0 0 0 / .18); }
+.cpick-opt { display: grid; gap: .1rem; padding: .45rem .7rem; cursor: pointer; color: var(--ink); border-bottom: 1px solid var(--line-2); }
+.cpick-opt:last-child { border-bottom: 0; }
+.cpick-opt b { font-weight: 500; }
+.cpick-opt small { color: var(--muted); }
+.cpick-opt.is-none { color: var(--muted); }
+.cpick-opt.is-act { background: var(--gold-soft); }
+@media (hover: hover) { .cpick-opt:hover { background: var(--gold-soft); } }
+.cpick-opt[aria-selected="true"] b::after { content: '  ✓'; color: var(--gold-ink); }
+.cpick-empty, .cpick-count { padding: .55rem .7rem; color: var(--muted); font-size: var(--t-xs); }
+.cpick-count { position: sticky; top: 0; background: var(--sheet-2); border-bottom: 1px solid var(--line-2); padding-block: .3rem; }
+.toolbar .cpick-field { flex: 2 1 14rem; max-width: 24rem; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .85rem 1rem; }
 .form-grid .full { grid-column: 1 / -1; }
 
@@ -504,7 +522,7 @@ function parsePunchRows(rows, preferOrder) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.10.27-9';
+  const APP_VERSION = '2026.10.27-10';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -563,6 +581,25 @@ function parsePunchRows(rows, preferOrder) {
   const clientById = (id) => S.clients.find((c) => c.id === id);
   const empName = (id) => (empById(id) || {}).name || '—';
   const clientName = (id) => (clientById(id) || {}).name || '—';
+  /* Searchable client picker: a hidden input carries the client id (attrs give it name= or id=/data-ch=), the visible box searches by
+     name, tax number or responsible accountant. Arabic letters are normalised so أ/إ/آ/ا, ة/ه and ى/ي match each other. */
+  const normAr = (v) => String(v == null ? '' : v).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
+  function clientPicker({ attrs, qid, value, none, label }) {
+    const c = value ? clientById(value) : null;
+    return '<div class="field cpick-field"><span>' + esc(label || 'العميل') + '</span><div class="cpick' + (value ? ' has-v' : '') + '" data-none="' + esc(none) + '">' +
+      '<input type="hidden" ' + attrs + ' value="' + esc(value || '') + '">' +
+      '<input type="search" class="cpick-q" id="' + qid + '" value="' + esc(c ? c.name : '') + '" placeholder="' + esc(none) + ' — اكتب للبحث" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="' + qid + '-list" aria-label="' + esc(label || 'العميل') + '">' +
+      '<button type="button" class="cpick-x" tabindex="-1" aria-label="مسح الاختيار">×</button>' +
+      '<div class="cpick-list" id="' + qid + '-list" role="listbox" hidden></div></div></div>';
+  }
+  function clientSearch(q) {
+    const toks = normAr(q).split(' ').filter(Boolean);
+    const rows = S.clients.map((c) => { const n = normAr(c.name); return { c, n, h: n + ' ' + normAr(c.tax_no) + ' ' + normAr(empName(c.employee_id)) }; });
+    if (!toks.length) return rows.sort((a, b) => String(a.c.name).localeCompare(String(b.c.name), 'ar')).map((r) => r.c);
+    const nq = toks.join(' ');
+    const rank = (r) => (r.n.startsWith(nq) ? 0 : r.n.includes(nq) ? 1 : toks.every((t) => r.n.includes(t)) ? 2 : 3);
+    return rows.filter((r) => toks.every((t) => r.h.includes(t))).sort((a, b) => rank(a) - rank(b) || String(a.c.name).localeCompare(String(b.c.name), 'ar')).map((r) => r.c);
+  }
   const empOpts = (sel, first, all) => (first != null ? '<option value="">' + esc(first) + '</option>' : '') + (all ? S.employees : activeEmps()).map((e) => '<option value="' + esc(e.id) + '"' + (e.id === sel ? ' selected' : '') + '>' + esc(e.name) + '</option>').join('');
 
   /* ---------- data (Supabase) ---------- */
@@ -719,12 +756,13 @@ function parsePunchRows(rows, preferOrder) {
     const fid = a && a.id && viewEl.contains(a) ? a.id : null;
     let sel = null;
     try { sel = fid && a.selectionStart != null ? [a.selectionStart, a.selectionEnd] : null; } catch (e) { sel = null; }
+    const cpTyped = fid && a.classList.contains('cpick-q') && a.getAttribute('aria-expanded') === 'true' ? a.value : null;
     let html;
     if (S.status === 'error') html = noDb();
     else if (!S.got.employees || !S.got.settings) html = '<div class="loading"><div class="skel" style="width:35%"></div><div class="skel"></div><div class="skel" style="width:75%"></div><div class="skel" style="width:60%"></div></div>';
     else html = ROUTES[UI.route][1]();
     viewEl.innerHTML = html;
-    if (fid) { const el = document.getElementById(fid); if (el) { el.focus({ preventScroll: true }); if (sel) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* not a text field */ } } }
+    if (fid) { const el = document.getElementById(fid); if (el) { el.focus({ preventScroll: true }); if (cpTyped != null) { el.value = cpTyped; cpOpen(el.closest('.cpick'), true); } if (sel) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* not a text field */ } } }
   }
   function noDb() {
     return '<div class="empty card"><b>تعذّر تحميل بيانات النظام</b><p>' + esc(S.err || 'تأكد من الاتصال بالإنترنت ثم أعد المحاولة.') + '</p><button class="btn btn-primary" data-act="reload">إعادة المحاولة</button></div>';
@@ -918,7 +956,7 @@ function parsePunchRows(rows, preferOrder) {
     const waiting = open.filter((x) => x.status === 'waiting').length;
     const doneM = S.tasks.filter((x) => x.status === 'done' && (x.done_at || '').slice(0, 7) === t.slice(0, 7)).length;
     out += '<div class="tiles"><div class="tile"><span>مهام مفتوحة</span><b class="num">' + open.length + '</b></div><div class="tile ' + (overdue ? 'is-bad' : '') + '"><span>متأخرة عن موعدها</span><b class="num">' + overdue + '</b></div><div class="tile ' + (week ? 'is-warn' : '') + '"><span>مستحقة هذا الأسبوع</span><b class="num">' + week + '</b></div><div class="tile"><span>بانتظار العميل</span><b class="num">' + waiting + '</b></div><div class="tile is-ok"><span>أُنجزت هذا الشهر</span><b class="num">' + doneM + '</b></div></div>';
-    const tools = '<div class="toolbar"><label class="field grow"><span>بحث</span><input type="search" id="task-q" data-in="task-q" value="' + esc(UI.taskQ) + '" placeholder="اسم المهمة أو العميل"></label><label class="field"><span>الحالة</span><select id="task-status" data-ch="task-status"><option value="open"' + (UI.taskStatus === 'open' ? ' selected' : '') + '>المفتوحة</option><option value="all"' + (UI.taskStatus === 'all' ? ' selected' : '') + '>الكل</option>' + opts(TASK_S, UI.taskStatus) + '</select></label><label class="field"><span>المسؤول</span><select id="task-emp" data-ch="task-emp">' + empOpts(UI.taskEmp, 'الكل') + '</select></label><label class="field"><span>العميل</span><select id="task-client" data-ch="task-client"><option value="">الكل</option>' + S.clients.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === UI.taskClient ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') + '</select></label></div>';
+    const tools = '<div class="toolbar"><label class="field grow"><span>بحث</span><input type="search" id="task-q" data-in="task-q" value="' + esc(UI.taskQ) + '" placeholder="اسم المهمة أو العميل"></label><label class="field"><span>الحالة</span><select id="task-status" data-ch="task-status"><option value="open"' + (UI.taskStatus === 'open' ? ' selected' : '') + '>المفتوحة</option><option value="all"' + (UI.taskStatus === 'all' ? ' selected' : '') + '>الكل</option>' + opts(TASK_S, UI.taskStatus) + '</select></label><label class="field"><span>المسؤول</span><select id="task-emp" data-ch="task-emp">' + empOpts(UI.taskEmp, 'الكل') + '</select></label>' + clientPicker({ attrs: 'id="task-client" data-ch="task-client"', qid: 'task-client-q', value: UI.taskClient, none: 'كل العملاء' }) + '</div>';
     const tbl = list.length ? '<div class="tbl-wrap" style="margin-top:.8rem"><table class="tbl"><thead><tr><th>المهمة</th><th>العميل</th><th>المسؤول</th><th>الاستحقاق</th><th>الأولوية</th><th>الحالة</th><th></th></tr></thead><tbody>' +
       list.map((x) => { const late = x.status !== 'done' && x.due && x.due < t; const days = x.due ? Math.round((Date.parse(x.due) - Date.parse(t)) / 864e5) : null;
         return '<tr><td class="wrap"><b>' + esc(x.title) + '</b><div class="muted" style="font-size:var(--t-xs)">' + esc(x.category || '') + (x.recur && x.recur !== 'none' ? ' · يتكرر ' + esc(RECUR[x.recur][0]) : '') + '</div></td><td>' + esc(clientName(x.client_id)) + '</td><td>' + esc(empName(x.employee_id)) + '</td><td><span class="' + (late ? 'due-bad' : x.status !== 'done' && days != null && days <= 2 ? 'due-warn' : '') + '">' + dShort(x.due) + '</span>' + (x.status !== 'done' && days != null ? '<div class="muted" style="font-size:var(--t-xs)">' + (late ? 'متأخرة ' + int(-days) + ' يوم' : days === 0 ? 'اليوم' : 'بعد ' + int(days) + ' يوم') + '</div>' : '') + '</td><td>' + chip(TASK_P[x.priority] || TASK_P.normal) + '</td><td><select id="task-st-' + esc(x.id) + '" data-ch="task-st" data-id="' + esc(x.id) + '" aria-label="الحالة" style="min-width:8.5rem">' + opts(TASK_S, x.status) + '</select></td><td><button class="btn btn-sm" data-act="task-edit" data-id="' + esc(x.id) + '">تعديل</button></td></tr>'; }).join('') + '</tbody></table></div>'
@@ -1043,6 +1081,92 @@ function parsePunchRows(rows, preferOrder) {
     if (ACT[t.dataset.act]) ACT[t.dataset.act](t, ev);
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalState) closeModal(); });
+
+  /* ---------- client picker behaviour */
+  const cpParts = (root) => ({ q: root.querySelector('.cpick-q'), hid: root.querySelector('input[type=hidden]'), box: root.querySelector('.cpick-list') });
+  function cpOpen(root, typing) {
+    const { q, hid, box } = cpParts(root);
+    const cur = hid.value ? clientById(hid.value) : null;
+    const typed = typing ? q.value : cur && q.value === cur.name ? '' : q.value;
+    const list = clientSearch(typed);
+    const opt = (v, inner, cls) => '<div class="cpick-opt' + (cls || '') + '" role="option" data-v="' + esc(v) + '" aria-selected="' + (v === hid.value) + '">' + inner + '</div>';
+    box.innerHTML = (typed.trim() ? '<div class="cpick-count">' + (list.length ? 'النتائج: ' + list.length + ' من ' + S.clients.length : '') + '</div>' : opt('', '<b>' + esc(root.dataset.none) + '</b>', ' is-none')) +
+      (list.length ? list.map((c) => opt(c.id, '<b>' + esc(c.name) + '</b><small>' + (c.tax_no ? '<bdi>' + esc(c.tax_no) + '</bdi> · ' : '') + esc(empById(c.employee_id) ? empName(c.employee_id) : 'بدون محاسب') + '</small>')).join('') : '<div class="cpick-empty">لا يوجد عميل يطابق «' + esc(typed.trim()) + '»</div>');
+    box.hidden = false; q.setAttribute('aria-expanded', 'true');
+    const opts = [...box.querySelectorAll('.cpick-opt')];
+    const at = typed.trim() ? (opts.length ? 0 : -1) : Math.max(0, opts.findIndex((o) => o.dataset.v === hid.value));
+    cpMark(root, at);
+  }
+  function cpMark(root, i, scroll) {
+    const { q, box } = cpParts(root); const opts = [...box.querySelectorAll('.cpick-opt')];
+    opts.forEach((o, k) => { o.classList.toggle('is-act', k === i); o.id = q.id + '-o' + k; });
+    root.dataset.act = i;
+    const o = opts[i];
+    if (!o) { q.removeAttribute('aria-activedescendant'); return; }
+    q.setAttribute('aria-activedescendant', o.id);
+    if (scroll === false) return; // scroll inside the list only, never the page
+    const head = box.querySelector('.cpick-count'), top = o.offsetTop - (head ? head.offsetHeight : 0);
+    if (top < box.scrollTop) box.scrollTop = top; else if (o.offsetTop + o.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = o.offsetTop + o.offsetHeight - box.clientHeight;
+  }
+  function cpClose(root) { const { q, box } = cpParts(root); box.hidden = true; box.innerHTML = ''; q.setAttribute('aria-expanded', 'false'); q.removeAttribute('aria-activedescendant'); }
+  function cpPick(root, v) {
+    const { q, hid } = cpParts(root);
+    const changed = hid.value !== v;
+    hid.value = v; q.value = v ? (clientById(v) || {}).name || '' : ''; root.classList.toggle('has-v', !!v);
+    cpClose(root);
+    if (hid.dataset.ch) q.blur(); // a filter re-renders the page; don't reopen the list there
+    if (changed) hid.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function cpCommit(root) {
+    if (!root.isConnected) return;
+    const { q, hid } = cpParts(root);
+    cpClose(root);
+    const t = q.value.trim(), cur = hid.value ? clientById(hid.value) : null;
+    if (!t) { if (hid.value) cpPick(root, ''); return; }
+    if (cur && t === cur.name) return;
+    const exact = S.clients.find((c) => normAr(c.name) === normAr(t));
+    if (exact) cpPick(root, exact.id); else q.value = cur ? cur.name : '';
+  }
+  document.addEventListener('focusin', (e) => {
+    if (!e.target.classList || !e.target.classList.contains('cpick-q')) return;
+    const root = e.target.closest('.cpick'); root.dataset.fresh = '1';
+    try { e.target.select(); } catch (err) { /* ignore */ }
+    cpOpen(root);
+  });
+  document.addEventListener('mouseup', (e) => { const r = e.target.closest && e.target.closest('.cpick'); if (r && r.dataset.fresh && e.target.classList.contains('cpick-q')) { e.preventDefault(); delete r.dataset.fresh; } });
+  document.addEventListener('focusout', (e) => {
+    if (!e.target.classList || !e.target.classList.contains('cpick-q')) return;
+    const root = e.target.closest('.cpick'); delete root.dataset.fresh;
+    setTimeout(() => { if (!root.contains(document.activeElement)) cpCommit(root); }, 160);
+  });
+  document.addEventListener('input', (e) => { if (e.target.classList && e.target.classList.contains('cpick-q')) { const root = e.target.closest('.cpick'); delete root.dataset.fresh; cpOpen(root, true); } });
+  document.addEventListener('mousedown', (e) => { if (e.target.closest && e.target.closest('.cpick-list, .cpick-x')) e.preventDefault(); });
+  document.addEventListener('click', (e) => {
+    const x = e.target.closest && e.target.closest('.cpick-x');
+    if (x) { e.preventDefault(); cpPick(x.closest('.cpick'), ''); return; }
+    const o = e.target.closest && e.target.closest('.cpick-opt');
+    if (o) { e.preventDefault(); cpPick(o.closest('.cpick'), o.dataset.v); return; }
+    if (e.target.classList && e.target.classList.contains('cpick-q') && e.target.getAttribute('aria-expanded') !== 'true') cpOpen(e.target.closest('.cpick'));
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!e.target.classList || !e.target.classList.contains('cpick-q')) return;
+    const root = e.target.closest('.cpick'), { box } = cpParts(root), open = !box.hidden;
+    const opts = open ? [...box.querySelectorAll('.cpick-opt')] : [];
+    const i = Number(root.dataset.act);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!open) { cpOpen(root); return; }
+      if (opts.length) cpMark(root, e.key === 'ArrowDown' ? Math.min(opts.length - 1, i + 1) : Math.max(0, i - 1));
+    } else if (e.key === 'Enter' && open) {
+      e.preventDefault();
+      if (opts[i]) cpPick(root, opts[i].dataset.v);
+    } else if (e.key === 'Escape' && open) {
+      e.preventDefault(); e.stopPropagation();
+      const { q, hid } = cpParts(root); cpClose(root); const cur = hid.value ? clientById(hid.value) : null; q.value = cur ? cur.name : '';
+    } else if (e.key === 'Tab' && open && e.target.value.trim() && opts[i] && opts[i].dataset.v) {
+      cpPick(root, opts[i].dataset.v);
+    }
+  }, true);
   let toastT = 0;
   function toast(msg, bad) { const r = document.getElementById('toast-root'); r.innerHTML = '<div class="toast' + (bad ? ' bad' : '') + '" role="status">' + esc(msg) + '</div>'; clearTimeout(toastT); toastT = setTimeout(() => (r.innerHTML = ''), bad ? 6000 : 2600); }
   function confirmBox(title, text, label, fn) { openModal({ title, body: '<p style="margin:0">' + text + '</p>', submit: label, danger: true, onSubmit: fn }); }
@@ -1157,7 +1281,7 @@ function parsePunchRows(rows, preferOrder) {
     openModal({
       title: isNew ? 'مهمة جديدة' : 'تعديل مهمة', wide: true,
       body: '<div class="form-grid"><label class="field full"><span>المهمة</span><input type="text" name="title" value="' + esc(x.title || '') + '" required placeholder="مثل: إقرار ضريبة المبيعات لشهري 9–10"></label>' +
-        '<label class="field"><span>العميل</span><select name="client_id"><option value="">— داخلي / بدون عميل —</option>' + S.clients.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === x.client_id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') + '</select></label>' +
+        clientPicker({ attrs: 'name="client_id"', qid: 'task-client-f', value: x.client_id, none: 'داخلي / بدون عميل' }) +
         '<label class="field"><span>المسؤول</span><select name="employee_id">' + empOpts(x.employee_id, '— اختر —') + '</select></label>' +
         '<label class="field"><span>التصنيف</span><select name="category">' + TASK_C.map((k) => '<option' + (k === x.category ? ' selected' : '') + '>' + esc(k) + '</option>').join('') + '</select></label>' +
         '<label class="field"><span>تاريخ الاستحقاق</span><input type="date" name="due" value="' + esc(x.due || '') + '"></label>' +

@@ -9,6 +9,7 @@ Internal HR web app for شركة الألفية للخدمات الضريبية 
 - Hosted on GitHub Pages from `main` (root): https://barhoom98.github.io/idarat-al-mawarid-al-bashariya/ — pushing to `main` deploys.
 - Backend: Supabase project `millennium-hr` (ref `nxhlxwpwpyicyprnsdfp`, eu-central-1). Client: supabase-js 2.49.4 UMD from jsDelivr (fallbacks in `index.html`).
 - After changing `index.html` or other shell files, bump `CACHE` in `sw.js` and `APP_VERSION` in `index.html` (shown in the side rail, so the owner can confirm they have the latest). The page reloads itself once when a new service worker takes over.
+- Choosing a client anywhere uses `clientPicker()` (searchable box: name, tax number or accountant; Arabic letters normalised by `normAr`) — use it for any new client field instead of a plain `<select>`.
 - Printing: documents render as `.lvdoc` HTML, shown in a preview dialog; «طباعة» prints only `#print-root`, «حفظ PDF / مشاركة» uses html2pdf.js (cdnjs) and the share sheet on phones.
 
 ## Data model (Supabase, schema public)
