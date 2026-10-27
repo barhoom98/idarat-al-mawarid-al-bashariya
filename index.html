@@ -130,6 +130,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
 .tbl tr.click { cursor: pointer; }
 .tbl tr.click:hover td { background: var(--sheet-2); }
 .tbl tr.sel td { background: var(--gold-soft); }
+.tbl tr.off td { background: var(--bad-soft); color: var(--bad); }
 .tbl .muted { color: var(--muted); }
 .who { display: flex; align-items: center; gap: .55rem; }
 .av { width: 1.9rem; height: 1.9rem; border-radius: 50%; background: var(--gold-soft); color: var(--gold-ink); display: grid; place-items: center; font-weight: 600; font-size: var(--t-xs); flex: none; }
@@ -777,7 +778,7 @@ function parsePunchRows(rows, preferOrder) {
     ensureMonth(ym);
     const emps = activeEmps().filter((e) => e.track !== false);
     const sums = emps.map((e) => ({ e, s: monthSummary(c, e, ym, t, now) }));
-    const tools = '<div class="toolbar"><label class="field"><span>الشهر</span><input type="month" id="att-month" data-ch="att-month" value="' + ym + '"></label><div class="actions" style="margin-inline-start:auto"><button class="btn" data-act="csv-att">تنزيل التقرير CSV</button></div></div>';
+    const tools = '<div class="toolbar"><label class="field"><span>الشهر</span><input type="month" id="att-month" data-ch="att-month" value="' + ym + '"></label><div class="actions" style="margin-inline-start:auto"><button class="btn btn-primary" data-act="xlsx-att">' + (UI.attEmp && empById(UI.attEmp) ? 'تنزيل تقرير ' + esc(empById(UI.attEmp).name) + ' (Excel)' : 'تنزيل التقرير (Excel)') + '</button></div></div>';
     const tot = sums.reduce((a, { s }) => { ['present', 'absent', 'leave', 'lateCount', 'lateMin', 'earlyMin', 'ot', 'otOff', 'missing'].forEach((k) => (a[k] = (a[k] || 0) + s[k])); return a; }, {});
     const tbl = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th class="n">أيام عمل</th><th class="n">حضور</th><th class="n">غياب</th><th class="n">إجازة</th><th class="n">مرات التأخير</th><th class="n">التأخير</th><th class="n">خروج مبكر</th><th class="n">إضافي عادي</th><th class="n">إضافي عطلة</th><th class="n">بصمات ناقصة</th></tr></thead><tbody>' +
       sums.map(({ e, s }) => '<tr class="click' + (UI.attEmp === e.id ? ' sel' : '') + '" data-act="att-emp" data-v="' + esc(e.id) + '"><td>' + esc(e.name) + '</td><td class="n">' + int(s.work) + '</td><td class="n">' + int(s.present) + '</td><td class="n">' + (s.absent ? '<span class="due-bad">' + int(s.absent) + '</span>' : '0') + '</td><td class="n">' + int(s.leave) + '</td><td class="n">' + int(s.lateCount) + '</td><td class="n">' + hm(s.lateMin) + '</td><td class="n">' + hm(s.earlyMin) + '</td><td class="n">' + hm(s.ot) + '</td><td class="n">' + hm(s.otOff) + '</td><td class="n">' + (s.missing ? '<span class="due-warn">' + int(s.missing) + '</span>' : '0') + '</td></tr>').join('') +
@@ -787,7 +788,7 @@ function parsePunchRows(rows, preferOrder) {
     if (pick) {
       const rows = pick.s.rows.filter((r) => r.status !== 'na');
       const det = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>اليوم</th><th>الحالة</th><th>دخول</th><th>خروج</th><th class="n">ساعات</th><th class="n">تأخير</th><th class="n">خروج مبكر</th><th class="n">إضافي</th><th>ملاحظة</th><th></th></tr></thead><tbody>' +
-        rows.map((r) => '<tr><td>' + esc(F.day.format(dateObj(r.date))) + '</td><td>' + chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + '</td><td class="num">' + t12(r.in) + '</td><td class="num">' + t12(r.out) + '</td><td class="n">' + hm(r.worked) + '</td><td class="n">' + hm(r.late) + '</td><td class="n">' + hm(r.early) + '</td><td class="n">' + hm(r.ot + r.otOff) + '</td><td class="wrap muted">' + esc(r.note) + '</td><td>' + (r.status === 'future' ? '' : '<button class="btn btn-sm" data-act="att-edit" data-emp="' + esc(pick.e.id) + '" data-date="' + r.date + '">تعديل</button>') + '</td></tr>').join('') + '</tbody></table></div>';
+        rows.map((r) => '<tr' + (r.status === 'off' || r.status === 'holiday' ? ' class="off"' : '') + '><td>' + esc(F.day.format(dateObj(r.date))) + '</td><td>' + chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + '</td><td class="num">' + t12(r.in) + '</td><td class="num">' + t12(r.out) + '</td><td class="n">' + hm(r.worked) + '</td><td class="n">' + hm(r.late) + '</td><td class="n">' + hm(r.early) + '</td><td class="n">' + hm(r.ot + r.otOff) + '</td><td class="wrap muted">' + esc(r.note) + '</td><td>' + (r.status === 'future' ? '' : '<button class="btn btn-sm" data-act="att-edit" data-emp="' + esc(pick.e.id) + '" data-date="' + r.date + '">تعديل</button>') + '</td></tr>').join('') + '</tbody></table></div>';
       out += card('تفاصيل ' + esc(pick.e.name), det, { flush: true, actions: '<button class="btn btn-sm" data-act="att-emp" data-v="">إغلاق</button>' });
     } else out += '<p class="note">اضغط على اسم موظف لعرض حضوره يوماً بيوم.</p>';
     return out;
@@ -1165,13 +1166,118 @@ function parsePunchRows(rows, preferOrder) {
   function save(filename, data) {
     try {
       const type = /\.csv$/.test(filename) ? 'text/csv;charset=utf-8' : /\.json$/.test(filename) ? 'application/json' : 'text/html;charset=utf-8';
-      const url = URL.createObjectURL(new Blob([data], { type }));
+      const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
       const a = document.createElement('a');
       a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (e) { toast('تعذّر التنزيل.', true); }
   }
   const csv = (rows) => '\uFEFF' + rows.map((r) => r.map((c) => { const s = String(c == null ? '' : c); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\r\n');
+
+  /* ---------- attendance report (Excel, one block per date; off days as one red row) ---------- */
+  let excelP = null;
+  function loadExcelJS() {
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    const srcs = ['https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js', 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'];
+    return excelP || (excelP = new Promise((res, rej) => {
+      const at = (i) => {
+        if (i >= srcs.length) { excelP = null; rej(new Error('exceljs')); return; }
+        const el = document.createElement('script');
+        el.src = srcs[i];
+        el.onload = () => (window.ExcelJS ? res(window.ExcelJS) : at(i + 1));
+        el.onerror = () => at(i + 1);
+        document.head.appendChild(el);
+      };
+      at(0);
+    }));
+  }
+  const dmy = (d) => d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4);
+  async function attendanceXlsx() {
+    const ym = UI.attMonth, t = todayStr(), now = nowMin(), c = ctx(), st = S.settings;
+    const only = UI.attEmp ? empById(UI.attEmp) : null;
+    const emps = (only ? [only] : activeEmps()).filter((e) => e.track !== false);
+    const from = [ym + '-01', st.start_date || ''].sort().pop();
+    const days = monthDays(ym).filter((d) => d >= from && d <= t);
+    if (!days.length) { toast('لا توجد أيام لعرضها في هذا الشهر بعد.', true); return; }
+    toast('جارٍ تجهيز التقرير…');
+    let X;
+    try { X = await loadExcelJS(); } catch (e) { toast('تعذّر تحميل أداة Excel. تأكد من الإنترنت ثم أعد المحاولة.', true); return; }
+    const FONT = 'Arial';
+    const line = { style: 'thin', color: { argb: 'FFD9D6CE' } };
+    const border = { top: line, bottom: line, left: line, right: line };
+    const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+    const RED = fill('FFFFC7CE'), HEAD = fill('FF26282C'), GOLD = fill('FFF5ECD6');
+    const wb = new X.Workbook();
+    wb.creator = st.company_ar || 'الألفية';
+    wb.calcProperties.fullCalcOnLoad = true;
+
+    const ws = wb.addWorksheet('الحضور', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 3 }] });
+    ws.columns = [12, 10, 20, 18, 10, 10, 11, 12, 14, 12, 15, 30].map((width) => ({ width }));
+    const top = (sheet, cols, text, sub) => {
+      sheet.mergeCells(1, 1, 1, cols); const a = sheet.getCell(1, 1); a.value = text; a.font = { name: FONT, bold: true, size: 14, color: { argb: 'FF85641F' } };
+      sheet.mergeCells(2, 1, 2, cols); const b = sheet.getCell(2, 1); b.value = sub; b.font = { name: FONT, size: 10, color: { argb: 'FF666666' } };
+    };
+    const header = (sheet, rowNo, labels) => {
+      const row = sheet.getRow(rowNo); row.height = 30;
+      labels.forEach((h, i) => { const cell = row.getCell(i + 1); cell.value = h; cell.font = { name: FONT, bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = HEAD; cell.border = border; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; });
+    };
+    top(ws, 12, (st.company_ar || '') + ' — تقرير الحضور ' + dMonth(ym) + (only ? ' — ' + only.name : ''),
+      'من ' + dmy(days[0]) + ' إلى ' + dmy(days[days.length - 1]) + ' · التأخير بعد سماح ' + st.grace + ' دقيقة · الأوقات بتوقيت عمّان');
+    header(ws, 3, ['التاريخ', 'اليوم', 'الموظف', 'الحالة', 'دخول', 'خروج', 'ساعات العمل', 'تأخير (دقيقة)', 'خروج مبكر (دقيقة)', 'إضافي (دقيقة)', 'إضافي عطلة (دقيقة)', 'ملاحظة']);
+    const styleRow = (row, bg, font) => {
+      for (let i = 1; i <= 12; i++) {
+        const cell = row.getCell(i);
+        cell.border = border; cell.font = font || { name: FONT, size: 11 };
+        cell.alignment = { horizontal: i >= 5 && i <= 11 ? 'center' : 'right', vertical: 'middle', wrapText: i === 12 };
+        if (bg) cell.fill = bg;
+      }
+    };
+    const empRow = (r, d, dn, e, x, bg) => {
+      const row = ws.getRow(r);
+      const status = (ST[x.status] || ['—'])[0] + (x.status === 'leave' && x.leave ? ' ' + (LEAVE_T[x.leave.type] || '') : '');
+      [dmy(d), dn, e.name, status, x.in ? t12(x.in) : '', x.out ? t12(x.out) : '', x.worked ? hm(x.worked) : '', x.late || 0, x.early || 0, x.ot || 0, x.otOff || 0, x.note || ''].forEach((v, i) => { row.getCell(i + 1).value = v; });
+      styleRow(row, bg);
+      if (x.status === 'absent' || x.status === 'notin') row.getCell(4).font = { name: FONT, size: 11, bold: true, color: { argb: 'FFB23B3B' } };
+      return r + 1;
+    };
+    let r = 4;
+    for (const d of days) {
+      const sc = sched(c, d), dn = DAYNAME[dow(d)];
+      const evs = emps.map((e) => ({ e, x: evalDay(c, e, d, t, now) })).filter(({ x }) => x.status !== 'na');
+      if (sc.type !== 'work') {
+        const row = ws.getRow(r);
+        row.getCell(1).value = dmy(d); row.getCell(2).value = dn;
+        row.getCell(3).value = sc.type === 'holiday' ? 'عطلة رسمية: ' + sc.name : 'يوم ' + dn + ' — عطلة أسبوعية';
+        styleRow(row, RED, { name: FONT, size: 11, bold: true, color: { argb: 'FF9C0006' } });
+        ws.mergeCells(r, 3, r, 12);
+        row.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+        r++;
+        for (const { e, x } of evs) if (x.worked || x.in) r = empRow(r, d, dn, e, x, GOLD);
+        continue;
+      }
+      const first = r;
+      for (const { e, x } of evs) r = empRow(r, d, dn, e, x, null);
+      if (r - first > 1) { ws.mergeCells(first, 1, r - 1, 1); ws.mergeCells(first, 2, r - 1, 2); }
+    }
+
+    const sm = wb.addWorksheet('الملخص', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 3 }] });
+    sm.columns = [22, 11, 10, 10, 10, 12, 13, 15, 13, 15, 12].map((width) => ({ width }));
+    top(sm, 11, 'ملخص الحضور ' + dMonth(ym), 'الأرقام حتى ' + dmy(days[days.length - 1]) + '. الدقائق قابلة للجمع، والإضافي يُصرف في كشف الرواتب.');
+    header(sm, 3, ['الموظف', 'أيام العمل', 'الحضور', 'الغياب', 'الإجازات', 'مرات التأخير', 'دقائق التأخير', 'دقائق الخروج المبكر', 'دقائق الإضافي', 'دقائق إضافي العطلة', 'بصمات ناقصة']);
+    let sr = 4;
+    for (const e of emps) {
+      const m = monthSummary(c, e, ym, t, now), row = sm.getRow(sr);
+      [e.name, m.work, m.present, m.absent, m.leave, m.lateCount, m.lateMin, m.earlyMin, m.ot, m.otOff, m.missing].forEach((v, i) => { const cell = row.getCell(i + 1); cell.value = v; cell.font = { name: FONT, size: 11 }; cell.border = border; cell.alignment = { horizontal: i ? 'center' : 'right' }; });
+      sr++;
+    }
+    const tr = sm.getRow(sr);
+    tr.getCell(1).value = 'المجموع';
+    for (let i = 2; i <= 11; i++) { const L = String.fromCharCode(64 + i); tr.getCell(i).value = { formula: 'SUM(' + L + '4:' + L + (sr - 1) + ')' }; }
+    for (let i = 1; i <= 11; i++) { const cell = tr.getCell(i); cell.font = { name: FONT, size: 11, bold: true }; cell.fill = GOLD; cell.border = border; cell.alignment = { horizontal: i > 1 ? 'center' : 'right' }; }
+
+    const buf = await wb.xlsx.writeBuffer();
+    save('تقرير-الحضور-' + ym + (only ? '-' + only.name.replace(/\s+/g, '-') : '') + '.xlsx', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  }
 
   /* ---------- actions ---------- */
   const ACT = {
@@ -1225,13 +1331,7 @@ function parsePunchRows(rows, preferOrder) {
       const hdr = ['الموظف', 'الأساسي', 'العلاوات', 'ساعات الإضافي', 'بدل الإضافي', 'مكافأة', 'الإجمالي', 'أيام الغياب', 'خصم الغياب', 'أيام بدون راتب', 'خصم بدون راتب', 'دقائق التأخير', 'خصم التأخير', 'الضمان (موظف)', 'الضمان (شركة)', 'ضريبة الدخل', 'سلف', 'خصومات أخرى', 'مجموع الاقتطاعات', 'الصافي'];
       save('كشف-رواتب-' + ym + '.csv', csv([hdr, ...rows.map((r) => [r.name, r.basic, r.allow, hm(r.otMin + r.otOffMin), r.otPay, r.bonus, r.gross, r.absent, r.absDed, r.unpaid, r.unpaidDed, r.lateMin, r.lateDed, r.ssc, r.sscEr, r.tax, r.advance, r.other, r.ded, r.net])]));
     },
-    'csv-att': () => {
-      const ym = UI.attMonth, t = todayStr(), now = nowMin(), c = ctx();
-      const hdr = ['الموظف', 'التاريخ', 'الحالة', 'دخول', 'خروج', 'ساعات العمل', 'تأخير (دقيقة)', 'خروج مبكر (دقيقة)', 'إضافي (دقيقة)', 'إضافي عطلة (دقيقة)', 'ملاحظة'];
-      const rows = [];
-      activeEmps().forEach((e) => monthSummary(c, e, ym, t, now).rows.forEach((r) => { if (r.status !== 'na' && r.status !== 'future') rows.push([e.name, r.date, (ST[r.status] || [''])[0], r.in || '', r.out || '', hm(r.worked), r.late, r.early, r.ot, r.otOff, r.note]); }));
-      save('تقرير-الحضور-' + ym + '.csv', csv([hdr, ...rows]));
-    },
+    'xlsx-att': () => attendanceXlsx(),
     'csv-clients': () => {
       const hdr = ['المحاسب المسؤول', 'الدورة', '#', 'العميل', 'النوع', 'الرقم الضريبي', 'مديرية المكلف', 'حالة الإقرار', 'ملاحظات', 'الشخص المسؤول', 'الهاتف'];
       const rows = [];
