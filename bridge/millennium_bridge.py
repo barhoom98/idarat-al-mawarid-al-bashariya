@@ -8,12 +8,16 @@
   python millennium_bridge.py --test   اختبار الاتصال بالجهاز وبالنظام ثم الخروج
 
 الإعدادات في config.ini بجانب هذا الملف (انسخه من config.example.ini).
+
+أمان: البرنامج يقرأ فقط. لا يحذف ولا يعدّل أي شيء على الجهاز — لا موظفين ولا بصمات ولا سجلات ولا إعدادات ولا الساعة —
+ولا يلمس برنامج ZKTeco أو قاعدة بياناته. يعمل نسخة واحدة فقط على الكمبيوتر.
 """
 import configparser
 import json
 import logging
 import logging.handlers
 import os
+import socket
 import sys
 import time
 import urllib.error
@@ -30,6 +34,24 @@ log.setLevel(logging.INFO)
 _h = logging.handlers.RotatingFileHandler(os.path.join(HERE, "bridge.log"), maxBytes=1_000_000, backupCount=3, encoding="utf-8")
 _h.setFormatter(logging.Formatter("%(asctime)s  %(message)s"))
 log.addHandler(_h)
+
+
+LOCK_PORT = 47370  # a local port held while the bridge runs, so a second copy never opens a second connection to the device
+_lock = None
+
+
+def single_instance():
+    global _lock
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        s.bind(("127.0.0.1", LOCK_PORT))
+    except OSError:
+        s.close()
+        return False
+    _lock = s
+    return True
 
 
 def say(msg):
@@ -118,6 +140,9 @@ def full_sync(conn, server, state):
 
 
 def run_forever(cfg):
+    if not single_instance():
+        say("الجسر يعمل مسبقاً على هذا الكمبيوتر — لا حاجة لتشغيله مرة ثانية.")
+        return
     server = Server(cfg)
     state = load_state()
     say("بدء جسر البصمة — الجهاز %s:%s" % (cfg["ip"], cfg["port"]))
@@ -151,6 +176,8 @@ def run_forever(cfg):
 
 
 def test(cfg):
+    if not single_instance():
+        sys.exit("الجسر شغّال الآن. للاختبار: شغّل stop_bridge.bat أولاً، ثم test_connection.bat، ثم start_bridge.bat.")
     print("1) الاتصال بجهاز البصمة %s:%s ..." % (cfg["ip"], cfg["port"]))
     try:
         conn = connect(cfg)
@@ -160,8 +187,18 @@ def test(cfg):
         users = conn.get_users() or []
         records = conn.get_attendance() or []
         print("   تم. الموظفون على الجهاز: %d، الحركات المخزنة: %d" % (len(users), len(records)))
-        for u in users[:20]:
+        key = lambda u: (0, int(u.user_id)) if str(u.user_id).isdigit() else (1, str(u.user_id))
+        for u in sorted(users, key=key):
             print("     رقم البصمة %s  %s" % (u.user_id, u.name))
+        try:
+            dev = conn.get_time()
+            diff = (dev - datetime.now()).total_seconds()
+            print("   ساعة الجهاز: %s   ساعة الكمبيوتر: %s" % (dev.strftime(TS), datetime.now().strftime(TS)))
+            if abs(diff) > 120:
+                m = round(abs(diff) / 60)
+                print("   تنبيه: ساعة الجهاز مختلفة عن الكمبيوتر بفرق %d %s. صحّحها من برنامج ZKTeco (مزامنة الوقت) أو من قائمة الجهاز." % (m, "دقائق" if 3 <= m <= 10 else "دقيقة"))
+        except Exception:
+            pass
         for a in sorted(records, key=lambda x: x.timestamp)[-5:]:
             print("     آخر حركة: رقم %s  %s" % (a.user_id, a.timestamp.strftime(TS)))
     finally:
