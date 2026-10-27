@@ -999,7 +999,7 @@ function parsePunchRows(rows, preferOrder) {
       : '<p class="note">' + (age <= 10 ? chip(['متصل', 'ok']) : chip(['غير متصل', 'warn'])) + ' آخر اتصال ' + esc(new Date(b.last_seen).toLocaleString('ar-JO-u-nu-latn')) + (b.device ? ' · ' + esc(b.device) : '') + '</p>';
     const bridge = bstate + '<div class="sec-t">مفتاح الربط</div><div class="keybox">' + esc(b.key || '—') + '</div><div class="actions" style="margin-top:.6rem"><button class="btn btn-sm" data-act="bridge-copy">نسخ المفتاح</button><button class="btn btn-sm btn-danger" data-act="bridge-new">توليد مفتاح جديد</button></div>' +
       '<p class="note" style="margin-top:.8rem">خطوات التثبيت في مجلد <a href="https://github.com/barhoom98/idarat-al-mawarid-al-bashariya/tree/main/bridge" target="_blank" rel="noopener">bridge</a> في مستودع النظام. المفتاح سري: لا تشاركه خارج الشركة.</p>';
-    const acct = '<dl class="kv"><dt>الحساب</dt><dd>' + esc(S.user && S.user.email) + '</dd></dl>' +
+    const acct = '<dl class="kv"><dt>الحساب</dt><dd>' + esc(S.user && S.user.email) + '</dd><dt>إصدار النظام</dt><dd class="num">' + APP_VERSION + '</dd></dl>' +
       '<form id="pw-form" data-form="pw" class="toolbar" style="margin-top:.8rem"><label class="field grow"><span>كلمة سر جديدة (8 أحرف على الأقل)</span><input type="password" id="pw-new" name="pw" minlength="8" autocomplete="new-password" required dir="ltr"></label><button class="btn" type="submit">تغيير كلمة السر</button></form>' +
       '<p class="note" style="margin-top:.8rem">المستخدمون المصرّح لهم: ' + esc((S.admins || []).join('، ')) + '. لإضافة مستخدم جديد اطلبه من Claude.</p>' +
       '<div class="actions" style="margin-top:.8rem"><button class="btn btn-danger" data-act="signout">تسجيل الخروج</button></div>';
