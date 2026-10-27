@@ -176,6 +176,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
 .err { color: var(--bad); font-size: var(--t-sm); margin: 0; }
 .toast { position: fixed; bottom: max(16px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--char); color: var(--char-ink); padding: .6rem 1.1rem; border-radius: var(--r-sm); font-size: var(--t-sm); z-index: 60; box-shadow: 0 8px 24px rgb(0 0 0 / .25); max-width: calc(100% - 32px); }
 .toast.bad { background: var(--bad-soft); color: var(--bad); border: 1px solid var(--bad); }
+#print-root { display: none; }
+@media print { body.printing > *:not(#print-root) { display: none !important; } body.printing #print-root { display: block; } body.printing { background: #fff; } }
 .field small { font-size: var(--t-xs); font-weight: 400; }
 
 .slip { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
@@ -268,6 +270,7 @@ const DEFAULTS = {
   ded_absence: true, ded_unpaid: true, ded_late: false,
   annual_leave: 14, annual_leave_senior: 21, senior_years: 5, sick_leave: 14,
   holidays: [],
+  print_preprinted: false, print_top_mm: 45,
 };
 function mergeSettings(doc) {
   const s = JSON.parse(JSON.stringify(DEFAULTS));
@@ -864,7 +867,7 @@ function parsePunchRows(rows, preferOrder) {
     const list = S.leaves.filter((l) => (!UI.leaveStatus || l.status === UI.leaveStatus) && (!UI.leaveEmp || l.employee_id === UI.leaveEmp)).sort((a, b) => b.start.localeCompare(a.start));
     const tools = '<div class="toolbar"><label class="field"><span>الموظف</span><select id="leave-emp" data-ch="leave-emp">' + empOpts(UI.leaveEmp, 'الكل', true) + '</select></label><label class="field"><span>الحالة</span><select id="leave-status" data-ch="leave-status">' + opts(LEAVE_S, UI.leaveStatus, 'الكل') + '</select></label></div>';
     const tbl = list.length ? '<div class="tbl-wrap" style="margin-top:.8rem"><table class="tbl"><thead><tr><th>الموظف</th><th>النوع</th><th>من</th><th>إلى</th><th class="n">أيام العمل</th><th>الحالة</th><th>ملاحظة</th><th></th></tr></thead><tbody>' +
-      list.map((l) => '<tr><td>' + esc(empName(l.employee_id)) + '</td><td>' + esc(LEAVE_T[l.type] || l.type) + '</td><td>' + dDate(l.start) + '</td><td>' + dDate(l.end) + '</td><td class="n">' + int(l.days) + '</td><td>' + chip(LEAVE_S[l.status] || ['—', '']) + '</td><td class="wrap muted">' + esc(l.note) + '</td><td><div class="actions">' + (l.status !== 'approved' ? '<button class="btn btn-sm" data-act="leave-set" data-id="' + esc(l.id) + '" data-v="approved">موافقة</button>' : '') + (l.status === 'pending' ? '<button class="btn btn-sm btn-danger" data-act="leave-set" data-id="' + esc(l.id) + '" data-v="rejected">رفض</button>' : '') + '<button class="btn btn-sm" data-act="leave-edit" data-id="' + esc(l.id) + '">تعديل</button></div></td></tr>').join('') + '</tbody></table></div>'
+      list.map((l) => '<tr><td>' + esc(empName(l.employee_id)) + '</td><td>' + esc(LEAVE_T[l.type] || l.type) + '</td><td>' + dDate(l.start) + '</td><td>' + dDate(l.end) + '</td><td class="n">' + int(l.days) + '</td><td>' + chip(LEAVE_S[l.status] || ['—', '']) + '</td><td class="wrap muted">' + esc(l.note) + '</td><td><div class="actions">' + (l.status !== 'approved' ? '<button class="btn btn-sm" data-act="leave-set" data-id="' + esc(l.id) + '" data-v="approved">موافقة</button>' : '') + (l.status === 'pending' ? '<button class="btn btn-sm btn-danger" data-act="leave-set" data-id="' + esc(l.id) + '" data-v="rejected">رفض</button>' : '') + '<button class="btn btn-sm" data-act="leave-print" data-id="' + esc(l.id) + '">طباعة</button><button class="btn btn-sm" data-act="leave-edit" data-id="' + esc(l.id) + '">تعديل</button></div></td></tr>').join('') + '</tbody></table></div>'
       : empty('لا توجد إجازات مسجلة', 'سجّل أي إجازة أو طلب إجازة من زر «تسجيل إجازة». الإجازات المعتمدة تظهر في الحضور تلقائياً ولا تُحسب غياباً.');
     return out + card('سجل الإجازات', tools + tbl);
   }
@@ -983,6 +986,7 @@ function parsePunchRows(rows, preferOrder) {
       card('التأخير والوقت الإضافي', '<div class="form-grid">' + num('grace', 'سماح التأخير (دقيقة)', s.grace) + num('ot_min', 'أقل مدة تُحسب إضافياً (دقيقة)', s.ot_min) + num('ot_rate', 'نسبة الإضافي في أيام الدوام', s.ot_rate, 0.05, '1.25 = 125% حسب المادة 59 من قانون العمل') + num('ot_rate_off', 'نسبة الإضافي في العطل', s.ot_rate_off, 0.05, '1.5 = 150%') + num('day_divisor', 'عدد أيام الشهر لحساب أجر اليوم', s.day_divisor) + num('hour_divisor', 'ساعات اليوم لحساب أجر الساعة', s.hour_divisor) + '</div>') +
       card('الخصومات والضمان الاجتماعي', '<div class="form-grid">' + num('ssc_emp', 'اقتطاع الموظف %', s.ssc_emp, 0.01) + num('ssc_er', 'حصة الشركة %', s.ssc_er, 0.01) + num('ssc_cap', 'الحد الأعلى للأجر الخاضع (دينار)', s.ssc_cap, 1) + '<div class="full" style="display:grid;gap:.5rem">' + chk('ded_absence', 'خصم يوم الغياب بدون إجازة', s.ded_absence) + chk('ded_unpaid', 'خصم الإجازة بدون راتب', s.ded_unpaid) + chk('ded_late', 'خصم دقائق التأخير والخروج المبكر بأجر الساعة', s.ded_late) + '</div></div>') +
       card('الإجازات', '<div class="form-grid">' + num('annual_leave', 'الإجازة السنوية (يوم)', s.annual_leave) + num('annual_leave_senior', 'السنوية بعد سنوات الخدمة (يوم)', s.annual_leave_senior) + num('senior_years', 'سنوات الخدمة المطلوبة', s.senior_years) + num('sick_leave', 'الإجازة المرضية بأجر (يوم)', s.sick_leave) + '</div>') +
+      card('الطباعة', '<div class="form-grid"><div class="field full"><label class="check"><input type="checkbox" name="print_preprinted"' + (s.print_preprinted ? ' checked' : '') + '> أطبع على ورق مروّس جاهز (لا تطبع الترويسة واترك مكانها فارغاً)</label></div>' + num('print_top_mm', 'المسافة العلوية للورق المروّس (ملم)', s.print_top_mm) + '</div>', { note: 'يُطبَّق على نماذج الإجازات. اتركه بدون تحديد ليطبع النظام ترويسة الشركة وشعارها بنفسه.' }) +
       '<div class="actions"><button class="btn btn-primary" type="submit">حفظ الإعدادات</button></div></form>';
     const hol = '<div class="list">' + (s.holidays.length ? s.holidays.slice().sort((a, b) => a.date.localeCompare(b.date)).map((h) => '<div class="li"><div><b>' + esc(h.name) + '</b><small>' + esc(F.full.format(dateObj(h.date))) + '</small></div><div class="end"><button class="btn btn-sm btn-danger" data-act="hol-del" data-v="' + esc(h.date) + '">حذف</button></div></div>').join('') : '<p class="note">لا توجد عطل رسمية مضافة. أضف عطل المملكة الرسمية حتى لا تُحسب غياباً.</p>') + '</div>' +
       '<form id="hol-form" data-form="hol" class="toolbar" style="margin-top:.8rem"><label class="field"><span>التاريخ</span><input type="date" name="date" required></label><label class="field grow"><span>اسم العطلة</span><input type="text" name="name" required placeholder="مثل: عيد الاستقلال"></label><button class="btn" type="submit">إضافة</button></form>';
@@ -1076,9 +1080,10 @@ function parsePunchRows(rows, preferOrder) {
       body: '<div class="form-grid"><label class="field full"><span>الموظف</span><select name="employee_id" required>' + empOpts(l.employee_id, '— اختر —') + '</select></label>' +
         '<label class="field"><span>نوع الإجازة</span><select name="type">' + opts(LEAVE_T, l.type) + '</select></label><label class="field"><span>الحالة</span><select name="status">' + opts(LEAVE_S, l.status) + '</select></label>' +
         '<label class="field"><span>من تاريخ</span><input type="date" name="start" value="' + esc(l.start) + '" required></label><label class="field"><span>إلى تاريخ</span><input type="date" name="end" value="' + esc(l.end) + '" required></label>' +
-        '<label class="field full"><span>ملاحظة</span><input type="text" name="note" value="' + esc(l.note || '') + '" placeholder="مثل: تقرير طبي مرفق"></label></div><p class="note" style="margin:0">تُحسب أيام العمل فقط، وتُستثنى العطلة الأسبوعية والعطل الرسمية.</p>',
+        '<label class="field full"><span>ملاحظة</span><input type="text" name="note" value="' + esc(l.note || '') + '" placeholder="مثل: تقرير طبي مرفق"></label>' +
+        (isNew ? '<div class="field full"><label class="check"><input type="checkbox" name="print_after" checked> طباعة نموذج الإجازة بعد الحفظ</label></div>' : '') + '</div><p class="note" style="margin:0">تُحسب أيام العمل فقط، وتُستثنى العطلة الأسبوعية والعطل الرسمية.</p>',
       submit: 'حفظ',
-      footLeft: isNew ? '' : '<button type="button" class="btn btn-danger" data-act="leave-del" data-id="' + esc(l.id) + '">حذف</button>',
+      footLeft: isNew ? '' : '<div class="actions"><button type="button" class="btn btn-danger" data-act="leave-del" data-id="' + esc(l.id) + '">حذف</button><button type="button" class="btn" data-act="leave-print" data-id="' + esc(l.id) + '">طباعة النموذج</button></div>',
       onSubmit: async (v) => {
         req(v.employee_id, 'اختر الموظف.'); req(v.start && v.end, 'حدد تاريخ البداية والنهاية.');
         if (v.end < v.start) throw 'تاريخ النهاية قبل تاريخ البداية.';
@@ -1088,6 +1093,7 @@ function parsePunchRows(rows, preferOrder) {
         const doc = { employee_id: v.employee_id, type: v.type, status: v.status, start: v.start, end: v.end, days, note: v.note || '', created: isNew ? new Date().toISOString() : l.created || new Date().toISOString() };
         await put('leaves/' + id, doc);
         toast('حُفظت الإجازة (' + days + ' يوم عمل)');
+        if (v.print_after) setTimeout(() => printLeave(id), 250);
       },
     });
   }
@@ -1448,6 +1454,64 @@ function parsePunchRows(rows, preferOrder) {
       '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;600;700&display=swap"><style>' + css + '</style></head><body>' + list.map(page).join('') + '</body></html>';
   }
 
+  /* ---------- printing on A4 letterhead (in-page; only #print-root is printed) ---------- */
+  function printDoc(html) {
+    let root = document.getElementById('print-root');
+    if (!root) { root = document.createElement('div'); root.id = 'print-root'; document.body.appendChild(root); }
+    root.innerHTML = html;
+    document.body.classList.add('printing');
+    const done = () => { document.body.classList.remove('printing'); root.innerHTML = ''; window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => { try { window.print(); } catch (e) { done(); toast('تعذّرت الطباعة من هذا الجهاز.', true); } }, 120);
+  }
+  const fullDay = (d) => DAYNAME[dow(d)] + ' ' + dmy(d);
+  /* Arabic count wording: 1 يوم واحد، 2 يومان، 3–10 أيام، 11+ يوماً (fractions keep «يوم»). */
+  const daysAr = (n, txt) => { const a = Math.abs(n); if (!Number.isInteger(a)) return txt + ' يوم'; if (a === 1) return n < 0 ? txt + ' يوم' : 'يوم واحد'; if (a === 2) return n < 0 ? txt + ' يوم' : 'يومان'; return txt + (a >= 3 && a <= 10 ? ' أيام' : ' يوماً'); };
+  function returnDate(end) { let d = addDays(end, 1); for (let k = 0; k < 40 && sched(ctx(), d).type !== 'work'; k++) d = addDays(d, 1); return d; }
+  function leaveDocHtml(l) {
+    const st = S.settings, e = empById(l.employee_id) || { name: '—' }, type = LEAVE_T[l.type] || l.type;
+    const ret = returnDate(l.end), ref = 'LV-' + l.start.slice(0, 4) + '-' + String(l.id || '').slice(-5).toUpperCase();
+    const pre = !!st.print_preprinted;
+    const row = (k, v) => '<tr><th>' + k + '</th><td>' + v + '</td></tr>';
+    let balance = '';
+    if (l.type === 'annual') {
+      const b = leaveBalance(ctx(), e, l.start.slice(0, 4), todayStr());
+      const counted = l.status === 'approved' && (b.mode !== 'open' || l.start > b.open);
+      const before = counted ? b.left + Number(l.days) : b.left, after = counted ? b.left : b.left - Number(l.days);
+      const f = (v) => (v < 0 ? '−' : '') + Math.abs(r2(v)).toLocaleString('en-US', { maximumFractionDigits: 2 });
+      balance = '<table class="bal"><tr><th>رصيد الإجازات قبل هذه الإجازة</th><th>مدة الإجازة</th><th>الرصيد بعد الإجازة</th></tr><tr><td>' + daysAr(before, f(before)) + '</td><td>' + daysAr(Number(l.days), int(l.days)) + '</td><td' + (after < 0 ? ' class="neg"' : '') + '>' + daysAr(after, f(after)) + '</td></tr></table>';
+    }
+    const css = '@page{size:A4;margin:12mm}#print-root{font-family:"IBM Plex Sans Arabic","Traditional Arabic",Arial,sans-serif;color:#1f2023;font-size:15px;line-height:1.75;direction:rtl}' +
+      '#print-root .sheet{max-width:186mm;margin:0 auto' + (pre ? ';padding-top:' + Math.max(0, Number(st.print_top_mm) || 0) + 'mm' : '') + '}' +
+      '#print-root header{display:flex;align-items:center;gap:14px;border-bottom:3px solid #C9A24E;padding-bottom:10px}#print-root header img{width:66px;height:66px;background:#26282C;border-radius:10px;padding:7px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '#print-root header h1{margin:0;font-size:22px;line-height:1.4}#print-root .en{margin:0;color:#85641F;font-size:13px;font-family:Arial,sans-serif}' +
+      '#print-root h2{text-align:center;margin:18px 0 2px;font-size:22px}#print-root .sub{text-align:center;margin:0 0 10px;color:#444}' +
+      '#print-root .ref{display:flex;justify-content:space-between;font-size:13px;color:#444;margin:6px 0 10px}' +
+      '#print-root table{width:100%;border-collapse:collapse;margin:8px 0}#print-root th,#print-root td{border:1px solid #bfbab0;padding:7px 10px;text-align:right}' +
+      '#print-root .info th{background:#f5f2ea;width:32%;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '#print-root .bal th{background:#26282C;color:#fff;text-align:center;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}#print-root .bal td{text-align:center;font-weight:700;font-size:17px}#print-root .bal .neg{color:#AE3636}' +
+      '#print-root .req{margin:16px 0;text-align:justify}#print-root .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:44px;text-align:center}' +
+      '#print-root .sign div{border-top:1px solid #444;padding-top:6px;font-weight:600}#print-root .stamp{margin:34px auto 0;width:120px;height:120px;border:1px dashed #999;border-radius:50%;display:grid;place-items:center;color:#888;font-size:13px}' +
+      '#print-root footer{margin-top:26px;color:#777;font-size:12px;text-align:center}';
+    return '<style>' + css + '</style><div class="sheet">' +
+      (pre ? '' : '<header><img src="' + MARK + '" alt=""><div><h1>' + esc(st.company_ar) + '</h1><p class="en">' + esc(st.company_en) + '</p></div></header>') +
+      '<h2>نموذج إجازة</h2><p class="sub">إجازة ' + esc(type) + ' — ' + esc((LEAVE_S[l.status] || ['—'])[0]) + '</p>' +
+      '<div class="ref"><span>الرقم المرجعي: ' + esc(ref) + '</span><span>تاريخ الإصدار: ' + esc(issuedAt()) + '</span></div>' +
+      '<table class="info">' + row('اسم الموظف', esc(e.name)) + row('المسمى الوظيفي', esc(e.title || '—')) + row('نوع الإجازة', esc(type)) +
+      row('من تاريخ', esc(fullDay(l.start))) + row('إلى تاريخ', esc(fullDay(l.end))) + row('مدة الإجازة', daysAr(Number(l.days), int(l.days)) + ' عمل') +
+      row('تاريخ المباشرة', esc(fullDay(ret))) + row('حالة الطلب', esc((LEAVE_S[l.status] || ['—'])[0])) + (l.note ? row('ملاحظات', esc(l.note)) : '') + '</table>' +
+      balance +
+      '<p class="req">أرجو الموافقة على منحي إجازة ' + esc(type) + ' لمدة (' + int(l.days) + ') ' + (Number(l.days) >= 3 && Number(l.days) <= 10 ? 'أيام' : 'يوم') + ' عمل، اعتباراً من يوم ' + esc(fullDay(l.start)) + ' ولغاية يوم ' + esc(fullDay(l.end)) + '، على أن أباشر عملي يوم ' + esc(fullDay(ret)) + '.</p>' +
+      '<div class="sign"><div>توقيع الموظف</div><div>المدير المباشر</div><div>اعتماد المدير العام</div></div>' +
+      '<div class="stamp">ختم الشركة</div>' +
+      (pre ? '' : '<footer>' + esc(st.company_ar) + ' — صادر من نظام الموارد البشرية</footer>') + '</div>';
+  }
+  function printLeave(id) {
+    const l = S.leaves.find((x) => x.id === id);
+    if (!l) { toast('لم يتم العثور على الإجازة.', true); return; }
+    printDoc(leaveDocHtml(l));
+  }
+
   /* ---------- actions ---------- */
   const ACT = {
     'att-tab': (el) => { UI.attTab = el.dataset.v; if (UI.route !== 'attendance') location.hash = 'attendance'; else render(); },
@@ -1463,6 +1527,7 @@ function parsePunchRows(rows, preferOrder) {
       });
     },
     'leave-new': () => leaveForm(null),
+    'leave-print': (el) => printLeave(el.dataset.id),
     'leave-edit': (el) => leaveForm(S.leaves.find((l) => l.id === el.dataset.id)),
     'leave-set': async (el) => {
       const l = S.leaves.find((x) => x.id === el.dataset.id); if (!l) return;
@@ -1563,7 +1628,8 @@ function parsePunchRows(rows, preferOrder) {
       const fd = new FormData(f), s = clean(S.settings);
       WEEK.forEach((d) => { s.schedule[d] = { on: fd.get('on_' + d) === 'on', start: fd.get('start_' + d) || '08:30', end: fd.get('end_' + d) || '17:30' }; });
       ['grace', 'ot_min', 'ot_rate', 'ot_rate_off', 'day_divisor', 'hour_divisor', 'ssc_emp', 'ssc_er', 'ssc_cap', 'annual_leave', 'annual_leave_senior', 'senior_years', 'sick_leave'].forEach((k) => { const v = Number(fd.get(k)); if (Number.isFinite(v)) s[k] = v; });
-      ['ded_absence', 'ded_unpaid', 'ded_late'].forEach((k) => (s[k] = fd.get(k) === 'on'));
+      ['ded_absence', 'ded_unpaid', 'ded_late', 'print_preprinted'].forEach((k) => (s[k] = fd.get(k) === 'on'));
+      { const v = Number(fd.get('print_top_mm')); if (Number.isFinite(v)) s.print_top_mm = v; }
       s.start_date = String(fd.get('start_date') || '');
       if (!s.day_divisor || !s.hour_divisor) return toast('عدد الأيام والساعات يجب أن يكون أكبر من صفر.', true);
       try { await put('hr/settings', s); UI.cfgDirty = false; render(true); toast('حُفظت الإعدادات'); } catch (e) { toast(dbMsg(e), true); }
