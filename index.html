@@ -843,7 +843,7 @@ function parsePunchRows(rows, preferOrder) {
     const ym = UI.payMonth, p = S.payroll[ym], locked = !!(p && p.locked);
     ensureMonth(ym);
     let out = head('الرواتب', 'الإضافي ' + int(S.settings.ot_rate * 100) + '% في أيام الدوام و' + int(S.settings.ot_rate_off * 100) + '% في العطل. أجر الساعة = الراتب الأساسي ÷ ' + int(S.settings.day_divisor) + ' ÷ ' + int(S.settings.hour_divisor) + '. المبالغ بالدينار الأردني.',
-      '<button class="btn" data-act="csv-pay">تنزيل الكشف CSV</button>' + (locked ? '<button class="btn" data-act="pay-unlock">إلغاء الاعتماد</button>' : '<button class="btn btn-primary" data-act="pay-lock">اعتماد رواتب الشهر</button>'));
+      '<button class="btn" data-act="xlsx-pay">تنزيل الكشف (Excel)</button><button class="btn" data-act="slips-all">كشوف الموظفين للطباعة</button>' + (locked ? '<button class="btn" data-act="pay-unlock">إلغاء الاعتماد</button>' : '<button class="btn btn-primary" data-act="pay-lock">اعتماد رواتب الشهر</button>'));
     if (!S.employees.length) return out + card('', noEmps());
     const rows = payRows(ym);
     const tools = '<div class="toolbar"><label class="field"><span>الشهر</span><input type="month" id="pay-month" data-ch="pay-month" value="' + ym + '"></label><div style="margin-inline-start:auto">' + (locked ? chip(['معتمد ومقفل', 'ok']) + ' <span class="note">بتاريخ ' + dDate((p.locked_at || '').slice(0, 10)) + '</span>' : chip(['مسودة — تتحدث مع الحضور', 'warn'])) + '</div></div>';
@@ -898,7 +898,7 @@ function parsePunchRows(rows, preferOrder) {
     return groups;
   }
   function renderClients() {
-    let out = head('العملاء', 'ملفات العملاء مرتّبة حسب المحاسب المسؤول. الدورة الزوجية لإقرارات المبيعات: 1–2، 3–4 … 11–12، والفردية: 12–1، 2–3 … 10–11.', '<button class="btn" data-act="csv-clients">تنزيل القائمة CSV</button><button class="btn btn-primary" data-act="client-new">عميل جديد</button>');
+    let out = head('العملاء', 'ملفات العملاء مرتّبة حسب المحاسب المسؤول. الدورة الزوجية لإقرارات المبيعات: 1–2، 3–4 … 11–12، والفردية: 12–1، 2–3 … 10–11.', '<button class="btn" data-act="xlsx-clients">تنزيل القائمة (Excel)</button><button class="btn btn-primary" data-act="client-new">عميل جديد</button>');
     const all = S.clients, list = clientsFiltered(), t = todayStr();
     const n = (f) => all.filter(f).length;
     if (all.length) out += '<div class="tiles"><div class="tile"><span>كل العملاء</span><b class="num">' + int(all.length) + '</b></div><div class="tile"><span>شركات</span><b class="num">' + int(n((c) => c.kind === 'company')) + '</b></div><div class="tile"><span>مؤسسات فردية</span><b class="num">' + int(n((c) => c.kind === 'est')) + '</b></div><div class="tile is-info"><span>الدورة الزوجية</span><b class="num">' + int(n((c) => c.gst_cycle === 'even')) + '</b></div><div class="tile"><span>الدورة الفردية</span><b class="num" style="color:var(--gold-ink)">' + int(n((c) => c.gst_cycle === 'odd')) + '</b></div></div>';
@@ -1151,7 +1151,7 @@ function parsePunchRows(rows, preferOrder) {
     openModal({
       title: 'كشف راتب ' + esc(r.name), wide: true, body: slipHtml(r, ym) + fields,
       submit: locked ? '' : 'حفظ التعديلات',
-      footLeft: '<button type="button" class="btn" data-act="slip-dl" data-v="' + esc(empId) + '">تنزيل الكشف</button>',
+      footLeft: '<button type="button" class="btn" data-act="slip-dl" data-v="' + esc(empId) + '">تنزيل كشف الراتب</button>',
       onSubmit: async (v) => {
         const doc = clean(S.payroll[ym] || { month: ym, adj: {} });
         doc.month = ym; doc.adj = doc.adj || {};
@@ -1174,7 +1174,7 @@ function parsePunchRows(rows, preferOrder) {
   }
   const csv = (rows) => '\uFEFF' + rows.map((r) => r.map((c) => { const s = String(c == null ? '' : c); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\r\n');
 
-  /* ---------- attendance report (Excel, one block per date; off days as one red row) ---------- */
+  /* ---------- official reports: company letterhead, report title, period, issue date; Arabic RTL ---------- */
   let excelP = null;
   function loadExcelJS() {
     if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
@@ -1192,6 +1192,88 @@ function parsePunchRows(rows, preferOrder) {
     }));
   }
   const dmy = (d) => d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4);
+  const issuedAt = () => { const n = new Date(); return pad(n.getDate()) + '/' + pad(n.getMonth() + 1) + '/' + n.getFullYear() + ' الساعة ' + t12(pad(n.getHours()) + ':' + pad(n.getMinutes())); };
+  const colL = (n) => { let s = ''; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+  const monthPeriod = (ym) => dMonth(ym) + ' (من ' + dmy(ym + '-01') + ' إلى ' + dmy(monthDays(ym).pop()) + ')';
+  const RP = { FONT: 'Arial' };
+  RP.line = { style: 'thin', color: { argb: 'FFBFBAB0' } };
+  RP.border = { top: RP.line, bottom: RP.line, left: RP.line, right: RP.line };
+  RP.fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+  RP.HEAD = RP.fill('FF26282C'); RP.GOLD = RP.fill('FFF5ECD6'); RP.RED = RP.fill('FFFFC7CE'); RP.ZEBRA = RP.fill('FFF7F6F3');
+  RP.font = (o) => Object.assign({ name: RP.FONT, size: 12 }, o || {});
+  const MONEY = '#,##0.000';
+
+  async function newWorkbook() {
+    toast('جارٍ تجهيز الملف…');
+    const X = await loadExcelJS();
+    const wb = new X.Workbook();
+    wb.creator = S.settings.company_ar || 'الألفية';
+    wb.calcProperties.fullCalcOnLoad = true;
+    return wb;
+  }
+  async function saveWorkbook(wb, filename) {
+    const buf = await wb.xlsx.writeBuffer();
+    save(filename, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  }
+  /* A sheet with the letterhead in rows 1–7; the table header goes in row 8. */
+  function reportSheet(wb, name, widths, meta, landscape) {
+    const n = widths.length;
+    const ws = wb.addWorksheet(name, { views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', ySplit: 8 }] });
+    ws.columns = widths.map((width) => ({ width }));
+    ws.pageSetup = { paperSize: 9, orientation: landscape ? 'landscape' : 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, printTitlesRow: '8:8', margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.6, header: 0.3, footer: 0.3 } };
+    ws.headerFooter = { oddFooter: '&R&"Arial"&9' + (S.settings.company_ar || '') + '&L&"Arial"&9صفحة &P من &N' };
+    const line = (r, value, font, height) => {
+      ws.mergeCells(r, 1, r, n);
+      const c = ws.getCell(r, 1);
+      c.value = value; c.font = RP.font(font); c.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rtl' };
+      ws.getRow(r).height = height;
+    };
+    line(1, S.settings.company_ar || 'شركة الألفية للخدمات الضريبية والمحاسبية', { size: 18, bold: true, color: { argb: 'FF26282C' } }, 30);
+    line(2, S.settings.company_en || 'Millennium Tax and Accounting Services', { size: 11, color: { argb: 'FF85641F' } }, 18);
+    ws.getRow(3).height = 6;
+    for (let i = 1; i <= n; i++) ws.getCell(3, i).border = { bottom: { style: 'medium', color: { argb: 'FFC9A24E' } } };
+    line(4, meta.title, { size: 16, bold: true }, 30);
+    line(5, 'الفترة: ' + meta.period, { size: 12, bold: true, color: { argb: 'FF333333' } }, 20);
+    line(6, [meta.scope, 'تاريخ الإصدار: ' + issuedAt()].filter(Boolean).join('     |     '), { size: 10, color: { argb: 'FF555555' } }, 18);
+    ws.getRow(7).height = 8;
+    try {
+      const id = wb.addImage({ base64: MARK.split(',')[1], extension: 'png' });
+      ws.addImage(id, { tl: { col: 0.15, row: 0.15 }, ext: { width: 56, height: 56 }, editAs: 'absolute' });
+    } catch (e) { /* the letterhead still reads without the logo */ }
+    return ws;
+  }
+  function tableHeader(ws, row, labels) {
+    const r = ws.getRow(row); r.height = 34;
+    labels.forEach((h, i) => { const c = r.getCell(i + 1); c.value = h; c.font = RP.font({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = RP.HEAD; c.border = RP.border; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rtl' }; });
+  }
+  /* o: {fill, font, center: [cols], wrap: [cols], numFmt: {col: fmt}} */
+  function bodyRow(ws, row, values, o) {
+    o = o || {};
+    const r = ws.getRow(row);
+    values.forEach((v, i) => {
+      const col = i + 1, c = r.getCell(col);
+      c.value = v; c.font = o.font || RP.font(); c.border = RP.border;
+      if (o.fill) c.fill = o.fill;
+      c.alignment = { horizontal: (o.center || []).includes(col) ? 'center' : 'right', vertical: 'middle', wrapText: (o.wrap || []).includes(col), readingOrder: 'rtl' };
+      if (o.numFmt && o.numFmt[col]) c.numFmt = o.numFmt[col];
+    });
+    return r;
+  }
+  function noteRow(ws, row, ncols, text) {
+    ws.mergeCells(row, 1, row, ncols);
+    const c = ws.getCell(row, 1);
+    c.value = text; c.font = RP.font({ size: 10, color: { argb: 'FF555555' } }); c.alignment = { horizontal: 'right', vertical: 'middle', wrapText: true, readingOrder: 'rtl' };
+    ws.getRow(row).height = 30;
+  }
+  function signatures(ws, row, cols, labels) {
+    labels.forEach((l, i) => {
+      const a = ws.getCell(row, cols[i]); a.value = l; a.font = RP.font({ bold: true }); a.alignment = { horizontal: 'center', readingOrder: 'rtl' };
+      const b = ws.getCell(row + 2, cols[i]); b.value = '........................................'; b.font = RP.font({ color: { argb: 'FF777777' } }); b.alignment = { horizontal: 'center' };
+    });
+  }
+  const excelFail = () => toast('تعذّر تحميل أداة Excel. تأكد من الإنترنت ثم أعد المحاولة.', true);
+
+  /* Attendance: dates in sequence, one block per work day, one red row per day off. */
   async function attendanceXlsx() {
     const ym = UI.attMonth, t = todayStr(), now = nowMin(), c = ctx(), st = S.settings;
     const only = UI.attEmp ? empById(UI.attEmp) : null;
@@ -1199,84 +1281,132 @@ function parsePunchRows(rows, preferOrder) {
     const from = [ym + '-01', st.start_date || ''].sort().pop();
     const days = monthDays(ym).filter((d) => d >= from && d <= t);
     if (!days.length) { toast('لا توجد أيام لعرضها في هذا الشهر بعد.', true); return; }
-    toast('جارٍ تجهيز التقرير…');
-    let X;
-    try { X = await loadExcelJS(); } catch (e) { toast('تعذّر تحميل أداة Excel. تأكد من الإنترنت ثم أعد المحاولة.', true); return; }
-    const FONT = 'Arial';
-    const line = { style: 'thin', color: { argb: 'FFD9D6CE' } };
-    const border = { top: line, bottom: line, left: line, right: line };
-    const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
-    const RED = fill('FFFFC7CE'), HEAD = fill('FF26282C'), GOLD = fill('FFF5ECD6');
-    const wb = new X.Workbook();
-    wb.creator = st.company_ar || 'الألفية';
-    wb.calcProperties.fullCalcOnLoad = true;
-
-    const ws = wb.addWorksheet('الحضور', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 3 }] });
-    ws.columns = [12, 10, 20, 18, 10, 10, 11, 12, 14, 12, 15, 30].map((width) => ({ width }));
-    const top = (sheet, cols, text, sub) => {
-      sheet.mergeCells(1, 1, 1, cols); const a = sheet.getCell(1, 1); a.value = text; a.font = { name: FONT, bold: true, size: 14, color: { argb: 'FF85641F' } };
-      sheet.mergeCells(2, 1, 2, cols); const b = sheet.getCell(2, 1); b.value = sub; b.font = { name: FONT, size: 10, color: { argb: 'FF666666' } };
-    };
-    const header = (sheet, rowNo, labels) => {
-      const row = sheet.getRow(rowNo); row.height = 30;
-      labels.forEach((h, i) => { const cell = row.getCell(i + 1); cell.value = h; cell.font = { name: FONT, bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = HEAD; cell.border = border; cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; });
-    };
-    top(ws, 12, (st.company_ar || '') + ' — تقرير الحضور ' + dMonth(ym) + (only ? ' — ' + only.name : ''),
-      'من ' + dmy(days[0]) + ' إلى ' + dmy(days[days.length - 1]) + ' · التأخير بعد سماح ' + st.grace + ' دقيقة · الأوقات بتوقيت عمّان');
-    header(ws, 3, ['التاريخ', 'اليوم', 'الموظف', 'الحالة', 'دخول', 'خروج', 'ساعات العمل', 'تأخير (دقيقة)', 'خروج مبكر (دقيقة)', 'إضافي (دقيقة)', 'إضافي عطلة (دقيقة)', 'ملاحظة']);
-    const styleRow = (row, bg, font) => {
-      for (let i = 1; i <= 12; i++) {
-        const cell = row.getCell(i);
-        cell.border = border; cell.font = font || { name: FONT, size: 11 };
-        cell.alignment = { horizontal: i >= 5 && i <= 11 ? 'center' : 'right', vertical: 'middle', wrapText: i === 12 };
-        if (bg) cell.fill = bg;
-      }
-    };
-    const empRow = (r, d, dn, e, x, bg) => {
-      const row = ws.getRow(r);
+    let wb;
+    try { wb = await newWorkbook(); } catch (e) { excelFail(); return; }
+    const period = dMonth(ym) + ' (من ' + dmy(days[0]) + ' إلى ' + dmy(days[days.length - 1]) + ')';
+    const scope = only ? 'الموظف: ' + only.name : 'الموظفون: الكل (' + emps.length + ')';
+    const ws = reportSheet(wb, 'الحضور', [13, 11, 22, 20, 11, 11, 12, 12, 14, 12, 15, 30], { title: 'تقرير الحضور والانصراف', period, scope }, true);
+    tableHeader(ws, 8, ['التاريخ', 'اليوم', 'الموظف', 'الحالة', 'دخول', 'خروج', 'ساعات العمل', 'تأخير (دقيقة)', 'خروج مبكر (دقيقة)', 'إضافي (دقيقة)', 'إضافي عطلة (دقيقة)', 'ملاحظة']);
+    const empRow = (r, d, dn, e, x, fill) => {
       const status = (ST[x.status] || ['—'])[0] + (x.status === 'leave' && x.leave ? ' ' + (LEAVE_T[x.leave.type] || '') : '');
-      [dmy(d), dn, e.name, status, x.in ? t12(x.in) : '', x.out ? t12(x.out) : '', x.worked ? hm(x.worked) : '', x.late || 0, x.early || 0, x.ot || 0, x.otOff || 0, x.note || ''].forEach((v, i) => { row.getCell(i + 1).value = v; });
-      styleRow(row, bg);
-      if (x.status === 'absent' || x.status === 'notin') row.getCell(4).font = { name: FONT, size: 11, bold: true, color: { argb: 'FFB23B3B' } };
+      const row = bodyRow(ws, r, [dmy(d), dn, e.name, status, x.in ? t12(x.in) : '', x.out ? t12(x.out) : '', x.worked ? hm(x.worked) : '', x.late || 0, x.early || 0, x.ot || 0, x.otOff || 0, x.note || ''], { fill, center: [1, 2, 5, 6, 7, 8, 9, 10, 11], wrap: [12] });
+      if (x.status === 'absent' || x.status === 'notin') row.getCell(4).font = RP.font({ bold: true, color: { argb: 'FFB23B3B' } });
       return r + 1;
     };
-    let r = 4;
+    let r = 9;
     for (const d of days) {
       const sc = sched(c, d), dn = DAYNAME[dow(d)];
       const evs = emps.map((e) => ({ e, x: evalDay(c, e, d, t, now) })).filter(({ x }) => x.status !== 'na');
       if (sc.type !== 'work') {
-        const row = ws.getRow(r);
-        row.getCell(1).value = dmy(d); row.getCell(2).value = dn;
-        row.getCell(3).value = sc.type === 'holiday' ? 'عطلة رسمية: ' + sc.name : 'يوم ' + dn + ' — عطلة أسبوعية';
-        styleRow(row, RED, { name: FONT, size: 11, bold: true, color: { argb: 'FF9C0006' } });
+        const label = sc.type === 'holiday' ? 'عطلة رسمية: ' + sc.name : 'يوم ' + dn + ' — عطلة أسبوعية';
+        bodyRow(ws, r, [dmy(d), dn, label, '', '', '', '', '', '', '', '', ''], { fill: RP.RED, font: RP.font({ bold: true, color: { argb: 'FF9C0006' } }), center: [1, 2, 3] });
         ws.mergeCells(r, 3, r, 12);
-        row.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
         r++;
-        for (const { e, x } of evs) if (x.worked || x.in) r = empRow(r, d, dn, e, x, GOLD);
+        for (const { e, x } of evs) if (x.worked || x.in) r = empRow(r, d, dn, e, x, RP.GOLD);
         continue;
       }
       const first = r;
       for (const { e, x } of evs) r = empRow(r, d, dn, e, x, null);
       if (r - first > 1) { ws.mergeCells(first, 1, r - 1, 1); ws.mergeCells(first, 2, r - 1, 2); }
     }
+    noteRow(ws, r + 1, 12, 'السطر الأحمر يوم عطلة (الجمعة أو عطلة رسمية)، والسطر الذهبي عمل في يوم عطلة يُحسب إضافياً بنسبة ' + int(st.ot_rate_off * 100) + '%. التأخير يُحسب بعد سماح ' + int(st.grace) + ' دقيقة.');
 
-    const sm = wb.addWorksheet('الملخص', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 3 }] });
-    sm.columns = [22, 11, 10, 10, 10, 12, 13, 15, 13, 15, 12].map((width) => ({ width }));
-    top(sm, 11, 'ملخص الحضور ' + dMonth(ym), 'الأرقام حتى ' + dmy(days[days.length - 1]) + '. الدقائق قابلة للجمع، والإضافي يُصرف في كشف الرواتب.');
-    header(sm, 3, ['الموظف', 'أيام العمل', 'الحضور', 'الغياب', 'الإجازات', 'مرات التأخير', 'دقائق التأخير', 'دقائق الخروج المبكر', 'دقائق الإضافي', 'دقائق إضافي العطلة', 'بصمات ناقصة']);
-    let sr = 4;
-    for (const e of emps) {
-      const m = monthSummary(c, e, ym, t, now), row = sm.getRow(sr);
-      [e.name, m.work, m.present, m.absent, m.leave, m.lateCount, m.lateMin, m.earlyMin, m.ot, m.otOff, m.missing].forEach((v, i) => { const cell = row.getCell(i + 1); cell.value = v; cell.font = { name: FONT, size: 11 }; cell.border = border; cell.alignment = { horizontal: i ? 'center' : 'right' }; });
-      sr++;
+    const sm = reportSheet(wb, 'الملخص', [24, 11, 10, 10, 10, 12, 13, 15, 13, 15, 12], { title: 'ملخص الحضور الشهري', period, scope }, true);
+    const cols = ['الموظف', 'أيام العمل', 'الحضور', 'الغياب', 'الإجازات', 'مرات التأخير', 'دقائق التأخير', 'دقائق الخروج المبكر', 'دقائق الإضافي', 'دقائق إضافي العطلة', 'بصمات ناقصة'];
+    tableHeader(sm, 8, cols);
+    emps.forEach((e, i) => {
+      const m = monthSummary(c, e, ym, t, now);
+      bodyRow(sm, 9 + i, [e.name, m.work, m.present, m.absent, m.leave, m.lateCount, m.lateMin, m.earlyMin, m.ot, m.otOff, m.missing], { center: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], fill: i % 2 ? RP.ZEBRA : null });
+    });
+    const tr = 9 + emps.length;
+    bodyRow(sm, tr, ['المجموع', ...cols.slice(1).map((_, k) => ({ formula: 'SUM(' + colL(k + 2) + '9:' + colL(k + 2) + (tr - 1) + ')' }))], { fill: RP.GOLD, font: RP.font({ bold: true }), center: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11] });
+    signatures(sm, tr + 3, [1, 6, 10], ['إعداد: الموارد البشرية', 'تدقيق', 'اعتماد: المدير العام']);
+    await saveWorkbook(wb, 'تقرير-الحضور-' + ym + (only ? '-' + only.name.replace(/\s+/g, '-') : '') + '.xlsx');
+  }
+
+  /* Payroll statement for the selected month. */
+  async function payrollXlsx() {
+    const ym = UI.payMonth, p = S.payroll[ym] || {}, rows = payRows(ym), st = S.settings;
+    if (!rows.length) { toast('لا يوجد موظفون في الكشف.', true); return; }
+    let wb;
+    try { wb = await newWorkbook(); } catch (e) { excelFail(); return; }
+    const scope = (p.locked ? 'الحالة: معتمد بتاريخ ' + dmy(String(p.locked_at || '').slice(0, 10) || todayStr()) : 'الحالة: مسودة غير معتمدة') + '     |     العملة: دينار أردني';
+    const cols = ['الرقم', 'الموظف', 'المسمى الوظيفي', 'الراتب الأساسي', 'العلاوات', 'ساعات الإضافي', 'بدل الإضافي', 'المكافأة', 'إجمالي المستحقات', 'خصم الغياب والإجازة بلا راتب', 'خصم التأخير', 'الضمان الاجتماعي ' + st.ssc_emp + '%', 'ضريبة الدخل', 'السلف والخصومات الأخرى', 'مجموع الاقتطاعات', 'صافي الراتب'];
+    const ws = reportSheet(wb, 'كشف الرواتب', [7, 22, 16, 13, 11, 11, 12, 11, 14, 15, 12, 14, 12, 15, 14, 14], { title: 'كشف رواتب الموظفين', period: monthPeriod(ym), scope }, true);
+    tableHeader(ws, 8, cols);
+    const fmt = {}; [4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].forEach((k) => (fmt[k] = MONEY));
+    rows.forEach((x, i) => bodyRow(ws, 9 + i, [i + 1, x.name, x.title || '', x.basic, x.allow, hm(x.otMin + x.otOffMin), x.otPay, x.bonus, x.gross, r3(x.absDed + x.unpaidDed), x.lateDed, x.ssc, x.tax, r3(x.advance + x.other), x.ded, x.net], { center: [1, 6], numFmt: fmt, fill: i % 2 ? RP.ZEBRA : null }));
+    const tr = 9 + rows.length;
+    bodyRow(ws, tr, ['', 'المجموع', '', ...cols.slice(3).map((_, k) => (k + 4 === 6 ? '' : { formula: 'SUM(' + colL(k + 4) + '9:' + colL(k + 4) + (tr - 1) + ')' }))], { fill: RP.GOLD, font: RP.font({ bold: true }), numFmt: fmt, center: [1] });
+    let r = tr + 2;
+    const kv = (label, value) => {
+      ws.mergeCells(r, 2, r, 5); const a = ws.getCell(r, 2); a.value = label; a.font = RP.font({ bold: true }); a.alignment = { horizontal: 'right', readingOrder: 'rtl' };
+      ws.mergeCells(r, 6, r, 7); const b = ws.getCell(r, 6); b.value = value; b.numFmt = MONEY; b.font = RP.font({ bold: true }); b.alignment = { horizontal: 'center' };
+      for (let i = 2; i <= 7; i++) ws.getCell(r, i).border = RP.border;
+      r++;
+    };
+    kv('حصة الشركة في الضمان الاجتماعي (' + st.ssc_er + '%)', r3(rows.reduce((s, x) => s + (Number(x.sscEr) || 0), 0)));
+    kv('التكلفة الكلية على الشركة (إجمالي المستحقات + حصة الشركة في الضمان)', { formula: 'I' + tr + '+F' + (r - 1) });
+    signatures(ws, r + 2, [2, 9, 14], ['إعداد: المحاسب', 'تدقيق', 'اعتماد: المدير العام']);
+    await saveWorkbook(wb, 'كشف-الرواتب-' + ym + '.xlsx');
+  }
+
+  /* Client list grouped by responsible accountant (current filters apply). */
+  async function clientsXlsx() {
+    const list = clientsFiltered(), groups = clientGroups(list);
+    if (!list.length) { toast('لا يوجد عملاء مطابقون للتنزيل.', true); return; }
+    let wb;
+    try { wb = await newWorkbook(); } catch (e) { excelFail(); return; }
+    const f = [];
+    if (UI.clientEmp) f.push('المحاسب: ' + (UI.clientEmp === 'none' ? 'بدون مسؤول' : empName(UI.clientEmp)));
+    if (UI.clientCycle) f.push('الدورة: ' + (UI.clientCycle === 'none' ? 'غير مسجّل بالمبيعات' : GST[UI.clientCycle][0]));
+    if (UI.clientKind) f.push('النوع: ' + CLIENT_K[UI.clientKind]);
+    if (UI.clientQ.trim()) f.push('بحث: ' + UI.clientQ.trim());
+    const scope = (f.length ? f.join(' · ') : 'كل العملاء') + ' — ' + list.length + ' عميل';
+    const ws = reportSheet(wb, 'العملاء', [7, 44, 14, 14, 18, 10, 28, 40], { title: 'قائمة العملاء حسب المحاسب المسؤول', period: 'كما في ' + dmy(todayStr()), scope }, true);
+    tableHeader(ws, 8, ['الرقم', 'العميل', 'النوع', 'الرقم الضريبي', 'مديرية المكلف', 'الدورة', 'حالة الإقرار', 'ملاحظات']);
+    let r = 9;
+    for (const g of groups) {
+      const ev = g.rows.filter((x) => x.gst_cycle === 'even').length, od = g.rows.filter((x) => x.gst_cycle === 'odd').length;
+      ws.mergeCells(r, 1, r, 8);
+      const h = ws.getCell(r, 1);
+      h.value = 'المحاسب المسؤول: ' + (g.e ? g.e.name : 'بدون مسؤول') + '   —   ' + g.rows.length + ' عميل (زوجية ' + ev + '، فردية ' + od + ')';
+      h.font = RP.font({ bold: true, size: 13 }); h.fill = RP.GOLD; h.alignment = { horizontal: 'right', vertical: 'middle', readingOrder: 'rtl' };
+      for (let i = 1; i <= 8; i++) ws.getCell(r, i).border = RP.border;
+      ws.getRow(r).height = 24;
+      r++;
+      g.rows.forEach((x, i) => { bodyRow(ws, r, [i + 1, x.name, CLIENT_K[x.kind] || '', x.tax_no || '', x.directorate || '', (GST[x.gst_cycle] || ['—'])[0], x.doc_status || '', x.notes || ''], { center: [1, 3, 4, 6], wrap: [2, 7, 8], fill: i % 2 ? RP.ZEBRA : null }); r++; });
     }
-    const tr = sm.getRow(sr);
-    tr.getCell(1).value = 'المجموع';
-    for (let i = 2; i <= 11; i++) { const L = String.fromCharCode(64 + i); tr.getCell(i).value = { formula: 'SUM(' + L + '4:' + L + (sr - 1) + ')' }; }
-    for (let i = 1; i <= 11; i++) { const cell = tr.getCell(i); cell.font = { name: FONT, size: 11, bold: true }; cell.fill = GOLD; cell.border = border; cell.alignment = { horizontal: i > 1 ? 'center' : 'right' }; }
+    noteRow(ws, r + 1, 8, 'الدورة الزوجية: إقرارات المبيعات للفترات 1–2، 3–4 … 11–12. الدورة الفردية: 12–1، 2–3 … 10–11.');
+    await saveWorkbook(wb, 'قائمة-العملاء-' + todayStr() + '.xlsx');
+  }
 
-    const buf = await wb.xlsx.writeBuffer();
-    save('تقرير-الحضور-' + ym + (only ? '-' + only.name.replace(/\s+/g, '-') : '') + '.xlsx', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  /* Payslips as a printable A4 document (one page per employee). */
+  function payslipsDoc(list, ym) {
+    const st = S.settings, p = S.payroll[ym] || {};
+    const status = p.locked ? 'معتمد بتاريخ ' + dmy(String(p.locked_at || '').slice(0, 10) || todayStr()) : 'مسودة غير معتمدة';
+    const tr = (l, v, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><th>' + l + '</th><td>' + v + '</td></tr>';
+    const page = (r) => '<section class="page">' +
+      '<header><img src="' + MARK + '" alt=""><div><h1>' + esc(st.company_ar) + '</h1><p class="en">' + esc(st.company_en) + '</p></div></header>' +
+      '<div class="meta"><h2>كشف راتب</h2><p><b>الفترة:</b> ' + esc(monthPeriod(ym)) + '</p><p class="small">' + esc(status) + ' · تاريخ الإصدار: ' + esc(issuedAt()) + '</p></div>' +
+      '<table class="info">' + tr('اسم الموظف', esc(r.name)) + tr('المسمى الوظيفي', esc(r.title || '—')) + tr('أيام العمل / أيام الحضور', int(r.work) + ' / ' + int(r.present)) + tr('أجر الساعة (دينار)', money(r.hourly)) + '</table>' +
+      '<div class="cols"><div><h3>المستحقات</h3><table>' + tr('الراتب الأساسي', money(r.basic)) + tr('العلاوات', money(r.allow)) + tr('بدل الإضافي (' + hm(r.otMin + r.otOffMin) + ' ساعة)', money(r.otPay)) + tr('المكافأة', money(r.bonus)) + tr('إجمالي المستحقات', money(r.gross), 'tot') + '</table></div>' +
+      '<div><h3>الاقتطاعات</h3><table>' + tr('الغياب (' + int(r.absent) + ' يوم)', money(r.absDed)) + tr('إجازة بدون راتب (' + int(r.unpaid) + ' يوم)', money(r.unpaidDed)) + tr('التأخير والخروج المبكر', money(r.lateDed)) + tr('الضمان الاجتماعي (' + esc(st.ssc_emp) + '%)', money(r.ssc)) + tr('ضريبة الدخل', money(r.tax)) + tr('السلف', money(r.advance)) + tr('خصومات أخرى', money(r.other)) + tr('مجموع الاقتطاعات', money(r.ded), 'tot') + '</table></div></div>' +
+      '<div class="net"><span>صافي الراتب المستحق (دينار أردني)</span><span>' + money(r.net) + '</span></div>' +
+      (r.note ? '<p class="note">ملاحظة: ' + esc(r.note) + '</p>' : '') +
+      '<div class="sign"><div>توقيع الموظف</div><div>المحاسب</div><div>المدير العام</div></div>' +
+      '<footer>' + esc(st.company_ar) + ' — كشف صادر من نظام الموارد البشرية</footer></section>';
+    const css = '@page{size:A4;margin:14mm}*{box-sizing:border-box}html,body{background:#fff}body{margin:0;color:#1f2023;font-family:"Noto Naskh Arabic","Traditional Arabic","Simplified Arabic",Arial,sans-serif;font-size:15px;line-height:1.75}' +
+      '.page{max-width:182mm;margin:0 auto;padding:12mm 4mm;page-break-after:always;break-after:page}.page:last-child{page-break-after:auto}' +
+      'header{display:flex;align-items:center;gap:14px;border-bottom:3px solid #C9A24E;padding-bottom:10px}header img{width:64px;height:64px;background:#26282C;border-radius:10px;padding:7px}header h1{margin:0;font-size:22px;line-height:1.4}.en{margin:0;color:#85641F;font-size:13px;font-family:Arial,sans-serif}' +
+      '.meta{text-align:center;margin:16px 0 10px}.meta h2{margin:0;font-size:21px}.meta p{margin:2px 0}.small{color:#555;font-size:13px}' +
+      'table{width:100%;border-collapse:collapse;margin:6px 0}th,td{border:1px solid #bfbab0;padding:6px 10px;text-align:right}th{background:#f5f2ea;font-weight:600;width:58%}td{font-family:Arial,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}' +
+      '.info th{width:40%}.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}h3{margin:14px 0 2px;font-size:16px}.tot th,.tot td{background:#26282C;color:#fff;font-weight:700}' +
+      '.net{margin-top:16px;border:2px solid #C9A24E;border-radius:6px;padding:10px 14px;display:flex;justify-content:space-between;font-size:18px;font-weight:700}.net span:last-child{font-family:Arial,sans-serif}' +
+      '.note{color:#444}.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:46px;text-align:center}.sign div{border-top:1px solid #444;padding-top:6px;font-weight:600}' +
+      'footer{margin-top:28px;color:#777;font-size:12px;text-align:center}@media (max-width:600px){.cols{grid-template-columns:1fr}}@media print{.page{padding:0}}';
+    return '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>كشوف الرواتب — ' + esc(dMonth(ym)) + '</title>' +
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;600;700&display=swap"><style>' + css + '</style></head><body>' + list.map(page).join('') + '</body></html>';
   }
 
   /* ---------- actions ---------- */
@@ -1313,9 +1443,11 @@ function parsePunchRows(rows, preferOrder) {
     'pay-slip': (el) => slipForm(el.dataset.v),
     'slip-dl': (el) => {
       const r = payRows(UI.payMonth).find((x) => x.emp_id === el.dataset.v); if (!r) return;
-      const css = Array.from(document.querySelectorAll('style')).map((s) => s.textContent).join('\n');
-      const html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>كشف راتب ' + esc(r.name) + '</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600&family=Readex+Pro:wght@600&display=swap"><style>' + css + ' body{padding:24px;max-width:56rem;margin:auto}</style></head><body>' + slipHtml(r, UI.payMonth) + '</body></html>';
-      save('كشف-راتب-' + r.name.replace(/\s+/g, '-') + '-' + UI.payMonth + '.html', html);
+      save('كشف-راتب-' + r.name.replace(/\s+/g, '-') + '-' + UI.payMonth + '.html', payslipsDoc([r], UI.payMonth));
+    },
+    'slips-all': () => {
+      const rows = payRows(UI.payMonth); if (!rows.length) return;
+      save('كشوف-رواتب-الموظفين-' + UI.payMonth + '.html', payslipsDoc(rows, UI.payMonth));
     },
     'pay-lock': () => confirmBox('اعتماد رواتب ' + esc(dMonth(UI.payMonth)), 'سيُحفظ الكشف كما هو الآن ولن يتغير بتعديل الحضور لاحقاً. يمكنك إلغاء الاعتماد عند الحاجة.', 'اعتماد', async () => {
       const ym = UI.payMonth, doc = clean(S.payroll[ym] || { month: ym, adj: {} });
@@ -1326,18 +1458,9 @@ function parsePunchRows(rows, preferOrder) {
       const ym = UI.payMonth, doc = clean(S.payroll[ym] || {}); doc.locked = false; delete doc.rows; delete doc.locked_at;
       try { await put('payroll/' + ym, doc); toast('أُلغي الاعتماد، والكشف يتحدث الآن مع الحضور'); } catch (e) { toast(dbMsg(e), true); }
     },
-    'csv-pay': () => {
-      const ym = UI.payMonth, rows = payRows(ym);
-      const hdr = ['الموظف', 'الأساسي', 'العلاوات', 'ساعات الإضافي', 'بدل الإضافي', 'مكافأة', 'الإجمالي', 'أيام الغياب', 'خصم الغياب', 'أيام بدون راتب', 'خصم بدون راتب', 'دقائق التأخير', 'خصم التأخير', 'الضمان (موظف)', 'الضمان (شركة)', 'ضريبة الدخل', 'سلف', 'خصومات أخرى', 'مجموع الاقتطاعات', 'الصافي'];
-      save('كشف-رواتب-' + ym + '.csv', csv([hdr, ...rows.map((r) => [r.name, r.basic, r.allow, hm(r.otMin + r.otOffMin), r.otPay, r.bonus, r.gross, r.absent, r.absDed, r.unpaid, r.unpaidDed, r.lateMin, r.lateDed, r.ssc, r.sscEr, r.tax, r.advance, r.other, r.ded, r.net])]));
-    },
+    'xlsx-pay': () => payrollXlsx(),
     'xlsx-att': () => attendanceXlsx(),
-    'csv-clients': () => {
-      const hdr = ['المحاسب المسؤول', 'الدورة', '#', 'العميل', 'النوع', 'الرقم الضريبي', 'مديرية المكلف', 'حالة الإقرار', 'ملاحظات', 'الشخص المسؤول', 'الهاتف'];
-      const rows = [];
-      clientGroups(clientsFiltered()).forEach((g) => g.rows.forEach((c, i) => rows.push([g.e ? g.e.name : 'بدون مسؤول', (GST[c.gst_cycle] || ['—'])[0], i + 1, c.name, CLIENT_K[c.kind] || '', c.tax_no || '', c.directorate || '', c.doc_status || '', c.notes || '', c.contact || '', c.phone || ''])));
-      save('عملاء-الألفية-' + todayStr() + '.csv', csv([hdr, ...rows]));
-    },
+    'xlsx-clients': () => clientsXlsx(),
     'imp-run': () => runImport(),
     'hol-del': async (el) => { const s = clean(S.settings); s.holidays = s.holidays.filter((h) => h.date !== el.dataset.v); try { await put('hr/settings', s); toast('حُذفت العطلة'); } catch (e) { toast(dbMsg(e), true); } },
     'backup': async () => {
