@@ -500,6 +500,8 @@ function parsePunchRows(rows, preferOrder) {
   const TASK_C = ['إقرار ضريبة الدخل', 'إقرار ضريبة المبيعات', 'اقتطاعات الرواتب', 'الضمان الاجتماعي', 'مسك الدفاتر والقيود', 'القوائم المالية', 'تدقيق', 'استشارة', 'معاملة حكومية', 'أخرى'];
   const RECUR = { none: ['بدون تكرار', 0], monthly: ['شهرياً', 1], bimonthly: ['كل شهرين', 2], quarterly: ['كل 3 أشهر', 3], yearly: ['سنوياً', 12] };
   const CLIENT_K = { company: 'شركة', person: 'فرد', est: 'مؤسسة فردية', ngo: 'جمعية / غير ربحية' };
+  // Sales-tax (GST) bi-monthly cycle: "even" files periods 1–2, 3–4 … 11–12; "odd" files 12–1, 2–3 … 10–11.
+  const GST = { even: ['زوجية', 'info'], odd: ['فردية', 'gold'] };
   const chip = (pair, extra) => '<span class="chip ' + (pair[1] || '') + '">' + esc(pair[0]) + (extra ? ' ' + extra : '') + '</span>';
   const opts = (map, sel, first) => (first ? '<option value="">' + esc(first) + '</option>' : '') + Object.entries(map).map(([k, v]) => '<option value="' + esc(k) + '"' + (k === sel ? ' selected' : '') + '>' + esc(Array.isArray(v) ? v[0] : v) + '</option>').join('');
 
@@ -508,7 +510,7 @@ function parsePunchRows(rows, preferOrder) {
   const today0 = todayStr();
   const UI = {
     route: 'home', attTab: 'day', attDate: today0, attMonth: today0.slice(0, 7), attEmp: '', leaveStatus: '', leaveEmp: '', leaveYear: today0.slice(0, 4),
-    payMonth: today0.slice(0, 7), taskStatus: 'open', taskEmp: '', taskClient: '', taskQ: '', clientQ: '', empShowInactive: false,
+    payMonth: today0.slice(0, 7), taskStatus: 'open', taskEmp: '', taskClient: '', taskQ: '', clientQ: '', clientEmp: '', clientCycle: '', clientKind: '', empShowInactive: false,
     imp: null, impOrder: 'dmy', impMap: {}, impBusy: false, impProgress: '',
   };
   const ctx = () => ({ settings: S.settings, days: S.days, leaves: S.leaves });
@@ -878,17 +880,41 @@ function parsePunchRows(rows, preferOrder) {
   }
 
   /* ---------- CLIENTS ---------- */
-  function renderClients() {
-    let out = head('العملاء', 'ملفات العملاء والمحاسب المسؤول عن كل ملف.', '<button class="btn btn-primary" data-act="client-new">عميل جديد</button>');
+  function clientsFiltered() {
     const q = UI.clientQ.trim();
-    const list = S.clients.filter((c) => !q || (c.name + ' ' + (c.tax_no || '') + ' ' + (c.contact || '')).includes(q));
-    const t = todayStr();
-    const tools = '<div class="toolbar"><label class="field grow"><span>بحث</span><input type="search" id="client-q" data-in="client-q" value="' + esc(UI.clientQ) + '" placeholder="اسم العميل أو الرقم الضريبي"></label></div>';
-    const tbl = list.length ? '<div class="tbl-wrap" style="margin-top:.8rem"><table class="tbl"><thead><tr><th>العميل</th><th>النوع</th><th>الرقم الضريبي</th><th>ضريبة المبيعات</th><th>المحاسب المسؤول</th><th>الهاتف</th><th class="n">الأتعاب الشهرية</th><th class="n">مهام مفتوحة</th><th></th></tr></thead><tbody>' +
-      list.map((c) => { const open = S.tasks.filter((x) => x.client_id === c.id && x.status !== 'done'); const od = open.filter((x) => x.due && x.due < t).length;
-        return '<tr><td><b>' + esc(c.name) + '</b>' + (c.contact ? '<div class="muted" style="font-size:var(--t-xs)">' + esc(c.contact) + '</div>' : '') + '</td><td>' + esc(CLIENT_K[c.kind] || '—') + '</td><td class="num">' + esc(c.tax_no || '—') + '</td><td>' + (c.sales_tax ? chip(['مسجّل', 'ok']) : '<span class="muted">—</span>') + '</td><td>' + esc(empName(c.employee_id)) + '</td><td class="num">' + esc(c.phone || '—') + '</td><td class="n">' + (c.fee ? money(c.fee) : '—') + '</td><td class="n">' + int(open.length) + (od ? ' <span class="due-bad">(' + od + ' متأخرة)</span>' : '') + '</td><td><div class="actions"><button class="btn btn-sm" data-act="client-tasks" data-id="' + esc(c.id) + '">المهام</button><button class="btn btn-sm" data-act="client-edit" data-id="' + esc(c.id) + '">تعديل</button></div></td></tr>'; }).join('') + '</tbody></table></div>'
-      : empty(S.clients.length ? 'لا يوجد عملاء مطابقون' : 'لا يوجد عملاء بعد', S.clients.length ? '' : 'أضف عملاء المكتب لتربط بهم المهام ومواعيد الإقرارات.', S.clients.length ? '' : '<button class="btn btn-primary" data-act="client-new">عميل جديد</button>');
-    return out + card('', tools + tbl);
+    const cyc = { even: 0, odd: 1 };
+    return S.clients.filter((c) =>
+      (!q || [c.name, c.tax_no, c.contact, c.notes, c.doc_status, c.directorate].some((v) => String(v || '').includes(q))) &&
+      (!UI.clientEmp || (UI.clientEmp === 'none' ? !empById(c.employee_id) : c.employee_id === UI.clientEmp)) &&
+      (!UI.clientCycle || (UI.clientCycle === 'none' ? !c.gst_cycle : c.gst_cycle === UI.clientCycle)) &&
+      (!UI.clientKind || c.kind === UI.clientKind))
+      .sort((a, b) => (cyc[a.gst_cycle] ?? 2) - (cyc[b.gst_cycle] ?? 2) || String(a.name).localeCompare(String(b.name), 'ar'));
+  }
+  function clientGroups(list) {
+    const groups = S.employees.map((e) => ({ e, rows: list.filter((c) => c.employee_id === e.id) })).filter((g) => g.rows.length);
+    const none = list.filter((c) => !empById(c.employee_id));
+    if (none.length) groups.push({ e: null, rows: none });
+    return groups;
+  }
+  function renderClients() {
+    let out = head('العملاء', 'ملفات العملاء مرتّبة حسب المحاسب المسؤول. الدورة الزوجية لإقرارات المبيعات: 1–2، 3–4 … 11–12، والفردية: 12–1، 2–3 … 10–11.', '<button class="btn" data-act="csv-clients">تنزيل القائمة CSV</button><button class="btn btn-primary" data-act="client-new">عميل جديد</button>');
+    const all = S.clients, list = clientsFiltered(), t = todayStr();
+    const n = (f) => all.filter(f).length;
+    if (all.length) out += '<div class="tiles"><div class="tile"><span>كل العملاء</span><b class="num">' + int(all.length) + '</b></div><div class="tile"><span>شركات</span><b class="num">' + int(n((c) => c.kind === 'company')) + '</b></div><div class="tile"><span>مؤسسات فردية</span><b class="num">' + int(n((c) => c.kind === 'est')) + '</b></div><div class="tile is-info"><span>الدورة الزوجية</span><b class="num">' + int(n((c) => c.gst_cycle === 'even')) + '</b></div><div class="tile"><span>الدورة الفردية</span><b class="num" style="color:var(--gold-ink)">' + int(n((c) => c.gst_cycle === 'odd')) + '</b></div></div>';
+    const tools = '<div class="toolbar"><label class="field grow"><span>بحث</span><input type="search" id="client-q" data-in="client-q" value="' + esc(UI.clientQ) + '" placeholder="اسم العميل أو الرقم الضريبي أو المديرية"></label>' +
+      '<label class="field"><span>المحاسب المسؤول</span><select id="client-emp" data-ch="client-emp"><option value="">الكل</option>' + S.employees.map((e) => '<option value="' + esc(e.id) + '"' + (e.id === UI.clientEmp ? ' selected' : '') + '>' + esc(e.name) + '</option>').join('') + '<option value="none"' + (UI.clientEmp === 'none' ? ' selected' : '') + '>بدون مسؤول</option></select></label>' +
+      '<label class="field"><span>الدورة</span><select id="client-cycle" data-ch="client-cycle"><option value="">الكل</option><option value="even"' + (UI.clientCycle === 'even' ? ' selected' : '') + '>زوجية</option><option value="odd"' + (UI.clientCycle === 'odd' ? ' selected' : '') + '>فردية</option><option value="none"' + (UI.clientCycle === 'none' ? ' selected' : '') + '>غير مسجّل بالمبيعات</option></select></label>' +
+      '<label class="field"><span>النوع</span><select id="client-kind" data-ch="client-kind">' + opts(CLIENT_K, UI.clientKind, 'الكل') + '</select></label></div>';
+    if (!all.length) return out + card('', tools + empty('لا يوجد عملاء بعد', 'أضف عملاء المكتب لتربط بهم المهام ومواعيد الإقرارات.', '<button class="btn btn-primary" data-act="client-new">عميل جديد</button>'));
+    out += card('', tools + (list.length ? '<p class="note" style="margin-top:.6rem">يظهر <span class="num">' + int(list.length) + '</span> من <span class="num">' + int(all.length) + '</span> عميل.</p>' : empty('لا يوجد عملاء مطابقون', 'غيّر البحث أو عوامل التصفية.')));
+    for (const g of clientGroups(list)) {
+      const ev = g.rows.filter((c) => c.gst_cycle === 'even').length, od = g.rows.filter((c) => c.gst_cycle === 'odd').length;
+      const tbl = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="n">#</th><th>العميل</th><th>النوع</th><th>الرقم الضريبي</th><th>مديرية المكلف</th><th>الدورة</th><th>حالة الإقرار</th><th>ملاحظات</th><th class="n">مهام مفتوحة</th><th></th></tr></thead><tbody>' +
+        g.rows.map((c, i) => { const open = S.tasks.filter((x) => x.client_id === c.id && x.status !== 'done'); const late = open.filter((x) => x.due && x.due < t).length;
+          return '<tr><td class="n muted">' + (i + 1) + '</td><td class="wrap"><b>' + esc(c.name) + '</b>' + (c.contact || c.phone ? '<div class="muted" style="font-size:var(--t-xs)">' + esc([c.contact, c.phone].filter(Boolean).join(' · ')) + '</div>' : '') + '</td><td>' + esc(CLIENT_K[c.kind] || '—') + '</td><td class="num">' + esc(c.tax_no || '—') + '</td><td>' + esc(c.directorate || '—') + '</td><td>' + (GST[c.gst_cycle] ? chip(GST[c.gst_cycle]) : '<span class="muted">—</span>') + '</td><td class="wrap">' + esc(c.doc_status || '—') + '</td><td class="wrap muted">' + esc(c.notes || '') + '</td><td class="n">' + int(open.length) + (late ? ' <span class="due-bad">(' + late + ' متأخرة)</span>' : '') + '</td><td><div class="actions"><button class="btn btn-sm" data-act="client-tasks" data-id="' + esc(c.id) + '">المهام</button><button class="btn btn-sm" data-act="client-edit" data-id="' + esc(c.id) + '">تعديل</button></div></td></tr>'; }).join('') + '</tbody></table></div>';
+      out += card((g.e ? esc(g.e.name) : 'بدون مسؤول') + ' <span class="chip plain num">' + int(g.rows.length) + ' عميل</span>', tbl, { flush: true, note: 'زوجية ' + int(ev) + ' · فردية ' + int(od) });
+    }
+    return out;
   }
 
   /* ---------- EMPLOYEES ---------- */
@@ -1058,14 +1084,17 @@ function parsePunchRows(rows, preferOrder) {
         '<label class="field"><span>الرقم الضريبي</span><input type="text" name="tax_no" inputmode="numeric" value="' + esc(c.tax_no || '') + '"></label><label class="field"><span>المحاسب المسؤول</span><select name="employee_id">' + empOpts(c.employee_id, '— غير محدد —') + '</select></label>' +
         '<label class="field"><span>الشخص المسؤول لدى العميل</span><input type="text" name="contact" value="' + esc(c.contact || '') + '"></label><label class="field"><span>الهاتف</span><input type="tel" name="phone" value="' + esc(c.phone || '') + '"></label>' +
         '<label class="field"><span>البريد الإلكتروني</span><input type="email" name="email" value="' + esc(c.email || '') + '"></label><label class="field"><span>الأتعاب الشهرية (دينار)</span><input type="number" name="fee" step="0.001" min="0" value="' + esc(c.fee || '') + '"></label>' +
-        '<div class="field full"><label class="check"><input type="checkbox" name="sales_tax"' + (c.sales_tax ? ' checked' : '') + '> مسجّل في ضريبة المبيعات</label></div>' +
-        '<label class="field full"><span>الخدمات والملاحظات</span><textarea name="notes" placeholder="مثل: مسك دفاتر شهري + إقرار مبيعات كل شهرين + ميزانية سنوية">' + esc(c.notes || '') + '</textarea></label></div>',
+        '<label class="field"><span>دورة إقرار المبيعات</span><select name="gst_cycle"><option value="">غير مسجّل بالمبيعات</option><option value="even"' + (c.gst_cycle === 'even' ? ' selected' : '') + '>زوجية (1–2، 3–4 …)</option><option value="odd"' + (c.gst_cycle === 'odd' ? ' selected' : '') + '>فردية (12–1، 2–3 …)</option></select></label>' +
+        '<label class="field"><span>مديرية المكلف</span><input type="text" name="directorate" value="' + esc(c.directorate || '') + '" placeholder="مثل: جنوب عمان، ت2، كبار المكلفين"></label>' +
+        '<label class="field full"><span>حالة الإقرار</span><input type="text" name="doc_status" value="' + esc(c.doc_status || '') + '" placeholder="مثل: فواتير (السوق المركزي)، زيارة، إرسال"></label>' +
+        '<label class="field full"><span>ملاحظات</span><textarea name="notes" placeholder="مثل: إحضار الفواتير من المحاسب، تاريخ التسجيل">' + esc(c.notes || '') + '</textarea></label></div>',
       submit: 'حفظ',
       footLeft: isNew ? '' : '<button type="button" class="btn btn-danger" data-act="client-del" data-id="' + esc(c.id) + '">حذف العميل</button>',
       onSubmit: async (v) => {
         req(v.name, 'أدخل اسم العميل.');
         const id = isNew ? newId('cl-') : c.id;
-        await put('clients/' + id, { name: v.name, kind: v.kind, tax_no: v.tax_no || '', employee_id: v.employee_id || '', contact: v.contact || '', phone: v.phone || '', email: v.email || '', fee: Number(v.fee) || 0, sales_tax: !!v.sales_tax, notes: v.notes || '', created: c.created || new Date().toISOString() });
+        const { id: _old, ...keep } = c;
+        await put('clients/' + id, { ...keep, name: v.name, kind: v.kind, tax_no: v.tax_no || '', employee_id: v.employee_id || '', contact: v.contact || '', phone: v.phone || '', email: v.email || '', fee: Number(v.fee) || 0, gst_cycle: v.gst_cycle || '', sales_tax: !!v.gst_cycle, directorate: v.directorate || '', doc_status: v.doc_status || '', notes: v.notes || '', created: c.created || new Date().toISOString() });
         toast('حُفظ العميل ' + v.name);
       },
     });
@@ -1203,6 +1232,12 @@ function parsePunchRows(rows, preferOrder) {
       activeEmps().forEach((e) => monthSummary(c, e, ym, t, now).rows.forEach((r) => { if (r.status !== 'na' && r.status !== 'future') rows.push([e.name, r.date, (ST[r.status] || [''])[0], r.in || '', r.out || '', hm(r.worked), r.late, r.early, r.ot, r.otOff, r.note]); }));
       save('تقرير-الحضور-' + ym + '.csv', csv([hdr, ...rows]));
     },
+    'csv-clients': () => {
+      const hdr = ['المحاسب المسؤول', 'الدورة', '#', 'العميل', 'النوع', 'الرقم الضريبي', 'مديرية المكلف', 'حالة الإقرار', 'ملاحظات', 'الشخص المسؤول', 'الهاتف'];
+      const rows = [];
+      clientGroups(clientsFiltered()).forEach((g) => g.rows.forEach((c, i) => rows.push([g.e ? g.e.name : 'بدون مسؤول', (GST[c.gst_cycle] || ['—'])[0], i + 1, c.name, CLIENT_K[c.kind] || '', c.tax_no || '', c.directorate || '', c.doc_status || '', c.notes || '', c.contact || '', c.phone || ''])));
+      save('عملاء-الألفية-' + todayStr() + '.csv', csv([hdr, ...rows]));
+    },
     'imp-run': () => runImport(),
     'hol-del': async (el) => { const s = clean(S.settings); s.holidays = s.holidays.filter((h) => h.date !== el.dataset.v); try { await put('hr/settings', s); toast('حُذفت العطلة'); } catch (e) { toast(dbMsg(e), true); } },
     'backup': async () => {
@@ -1244,6 +1279,9 @@ function parsePunchRows(rows, preferOrder) {
       const { id, ...rest } = x; const v = el.value;
       try { await put('tasks/' + id, { ...rest, status: v, done_at: v === 'done' ? new Date().toISOString() : '' }); if (v === 'done' && x.status !== 'done') await spawnNext({ ...x, status: v }); toast('تحدّثت حالة المهمة'); } catch (e) { toast(dbMsg(e), true); }
     },
+    'client-emp': (el) => { UI.clientEmp = el.value; render(); },
+    'client-cycle': (el) => { UI.clientCycle = el.value; render(); },
+    'client-kind': (el) => { UI.clientKind = el.value; render(); },
     'emp-inactive': (el) => { UI.empShowInactive = el.checked; render(); },
     'imp-order': (el) => { UI.impOrder = el.value; if (UI.imp && UI.imp.rows) { reparse(); } render(); },
     'imp-map': (el) => { UI.impMap[el.dataset.fp] = el.value; render(); },
