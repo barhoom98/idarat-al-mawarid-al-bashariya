@@ -2,6 +2,8 @@
 
 Internal HR web app for شركة الألفية للخدمات الضريبية والمحاسبية (Amman, Jordan). Arabic, RTL. The owner asks for changes in Arabic; answer in Arabic.
 
+**Owner's standing request:** after every change, end the reply with the live link on its own line: https://barhoom98.github.io/idarat-al-mawarid-al-bashariya/ (the URL never changes; pushing to `main` updates it).
+
 ## Stack
 - Static single-page app, no build step: `index.html` (all CSS + JS inline), `config.js`, `sw.js`, `manifest.webmanifest`, `icons/`.
 - Hosted on GitHub Pages from `main` (root): https://barhoom98.github.io/idarat-al-mawarid-al-bashariya/ — pushing to `main` deploys.
