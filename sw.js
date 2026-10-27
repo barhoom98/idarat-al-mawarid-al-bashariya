@@ -1,6 +1,6 @@
 // Offline shell for the installed app. Data always comes live from Supabase;
 // only this site's own files are cached, network-first and revalidated (no-cache) so updates arrive on the next open.
-const CACHE = 'millennium-hr-v8';
+const CACHE = 'millennium-hr-v9';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-64.png'];
 
 self.addEventListener('install', (e) => {

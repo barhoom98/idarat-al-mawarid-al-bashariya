@@ -20,8 +20,10 @@ Internal HR web app for شركة الألفية للخدمات الضريبية 
 - Realtime publication includes all of the above; the app subscribes to `postgres_changes` on schema public.
 
 ## Adding a user
-1. Create the auth user (Supabase dashboard → Authentication → Add user, with "Auto confirm"), or SQL insert into `auth.users` + `auth.identities` with empty-string token columns.
-2. `insert into public.app_admins (email) values ('lowercase@email');`
+Sign-in is by **username** (the owner's is `ALABED`). The app maps a username to the internal address `<username lowercase>@users.millennium-hr.invalid` (`USER_DOMAIN`, `loginEmail()`, `userLabel()` in `index.html`); anything typed with `@` is used as a real email. `.invalid` is a reserved domain, so nothing is ever mailed there — password resets by email don't apply; change passwords in the app (الإعدادات → حسابي) or in the Supabase dashboard.
+1. Create the auth user with email `<username>@users.millennium-hr.invalid` (Supabase dashboard → Authentication → Add user, with "Auto confirm"), or SQL insert into `auth.users` + `auth.identities` with empty-string token columns.
+2. `insert into public.app_admins (email) values ('<username>@users.millennium-hr.invalid');`
+3. To rename an existing user, update `auth.users.email`, `auth.identities.identity_data->email` and `app_admins.email` together (the app refreshes the session once if the admin check fails).
 
 ## Fingerprint
 - Edge function `punch-ingest` (`supabase/functions/punch-ingest`, verify_jwt=false): checks header `x-bridge-key` against `bridge.key`, upserts punches, updates heartbeat.
