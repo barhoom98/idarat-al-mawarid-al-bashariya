@@ -292,7 +292,7 @@ const DEFAULTS = {
   company_en: 'Millennium Tax and Accounting Services',
   schedule: { 6: { on: true, start: '08:30', end: '17:30' }, 0: { on: true, start: '08:30', end: '17:30' }, 1: { on: true, start: '08:30', end: '17:30' }, 2: { on: true, start: '08:30', end: '17:30' }, 3: { on: true, start: '08:30', end: '17:30' }, 4: { on: true, start: '08:30', end: '14:30' }, 5: { on: false, start: '08:30', end: '14:30' } },
   grace: 15, ot_min: 15, punch_gap: 10, ot_rate: 1.25, ot_rate_off: 1.5, day_divisor: 30, hour_divisor: 8,
-  ssc_emp: 7.5, ssc_er: 14.25, ssc_cap: 3349,
+  ssc_emp: 7.5, ssc_er: 14.25, ssc_cap: 3733, // 2026 cap set by the Social Security Corporation (yearly)
   ded_absence: true, ded_unpaid: true, ded_late: false,
   annual_leave: 14, annual_leave_senior: 21, senior_years: 5, sick_leave: 14,
   holidays: [],
@@ -533,7 +533,7 @@ function parsePunchRows(rows, preferOrder) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.10.28-2';
+  const APP_VERSION = '2026.10.28-3';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -1043,7 +1043,7 @@ function parsePunchRows(rows, preferOrder) {
       card('الخصومات والضمان الاجتماعي', '<div class="form-grid">' + num('ssc_emp', 'اقتطاع الموظف %', s.ssc_emp, 0.01) + num('ssc_er', 'حصة الشركة %', s.ssc_er, 0.01) + num('ssc_cap', 'الحد الأعلى للأجر الخاضع (دينار)', s.ssc_cap, 1) + '<div class="full" style="display:grid;gap:.5rem">' + chk('ded_absence', 'خصم يوم الغياب بدون إجازة', s.ded_absence) + chk('ded_unpaid', 'خصم الإجازة بدون راتب', s.ded_unpaid) + chk('ded_late', 'خصم دقائق التأخير والخروج المبكر بأجر الساعة', s.ded_late) + '</div></div>') +
       card('الإجازات', '<div class="form-grid">' + num('annual_leave', 'الإجازة السنوية (يوم)', s.annual_leave) + num('annual_leave_senior', 'السنوية بعد سنوات الخدمة (يوم)', s.annual_leave_senior) + num('senior_years', 'سنوات الخدمة المطلوبة', s.senior_years) + num('sick_leave', 'الإجازة المرضية بأجر (يوم)', s.sick_leave) + '</div>') +
       card('الطباعة', '<div class="form-grid"><div class="field full"><label class="check"><input type="checkbox" name="print_preprinted"' + (s.print_preprinted ? ' checked' : '') + '> أطبع على ورق مروّس جاهز (لا تطبع الترويسة واترك مكانها فارغاً)</label></div>' + num('print_top_mm', 'المسافة العلوية للورق المروّس (ملم)', s.print_top_mm) + '</div>', { note: 'يُطبَّق على نماذج الإجازات. اتركه بدون تحديد ليطبع النظام ترويسة الشركة وشعارها بنفسه.' }) +
-      '<div class="actions"><button class="btn btn-primary" type="submit">حفظ الإعدادات</button></div></form>';
+      '<div class="actions" style="align-items:center"><span class="note">تُحفظ أي تعديلات هنا تلقائياً لحظة تغييرها.</span><button class="btn btn-primary" type="submit">حفظ الإعدادات</button></div></form>';
     const hol = '<div class="list">' + (s.holidays.length ? s.holidays.slice().sort((a, b) => a.date.localeCompare(b.date)).map((h) => '<div class="li"><div><b>' + esc(h.name) + '</b><small>' + esc(F.full.format(dateObj(h.date))) + '</small></div><div class="end"><button class="btn btn-sm btn-danger" data-act="hol-del" data-v="' + esc(h.date) + '">حذف</button></div></div>').join('') : '<p class="note">لا توجد عطل رسمية مضافة. أضف عطل المملكة الرسمية حتى لا تُحسب غياباً.</p>') + '</div>' +
       '<form id="hol-form" data-form="hol" class="toolbar" style="margin-top:.8rem"><label class="field"><span>التاريخ</span><input type="date" name="date" required></label><label class="field grow"><span>اسم العطلة</span><input type="text" name="name" required placeholder="مثل: عيد الاستقلال"></label><button class="btn" type="submit">إضافة</button></form>';
     const data = '<p class="note">صدّر نسخة احتياطية كاملة من بيانات النظام (الموظفون، الحضور، الإجازات، الرواتب، العملاء، المهام) واحفظها عندك، أو استرجع نسخة سابقة.</p><div class="actions" style="margin-top:.8rem"><button class="btn" data-act="backup">تنزيل نسخة احتياطية</button><label class="btn" for="restore-file">استرجاع نسخة</label><input type="file" id="restore-file" data-ch="restore" accept=".json" hidden></div>';
@@ -1819,11 +1819,12 @@ function parsePunchRows(rows, preferOrder) {
     'client-q': (el) => { UI.clientQ = el.value; render(); },
   };
   viewEl.addEventListener('click', (ev) => { const t = ev.target.closest('[data-act]'); if (t && ACT[t.dataset.act]) { if (t.tagName === 'A') { /* let hash links work */ } ACT[t.dataset.act](t, ev); } });
-  viewEl.addEventListener('change', (ev) => { if (ev.target.closest('#cfg-form')) UI.cfgDirty = true; const t = ev.target.closest('[data-ch]'); if (t && CH[t.dataset.ch]) CH[t.dataset.ch](t, ev); });
+  viewEl.addEventListener('change', (ev) => { const cf = ev.target.closest('#cfg-form'); if (cf) { UI.cfgDirty = true; saveCfg(cf); } const t = ev.target.closest('[data-ch]'); if (t && CH[t.dataset.ch]) CH[t.dataset.ch](t, ev); });
   viewEl.addEventListener('input', (ev) => { if (ev.target.closest('#cfg-form')) UI.cfgDirty = true; const t = ev.target.closest('[data-in]'); if (t && IN[t.dataset.in]) IN[t.dataset.in](t, ev); });
-  viewEl.addEventListener('submit', async (ev) => {
-    const f = ev.target; ev.preventDefault();
-    if (f.dataset.form === 'cfg') {
+  /* Settings save themselves on every change; the button is kept for reassurance. */
+  let cfgSaving = Promise.resolve();
+  function saveCfg(f, fromButton) {
+    cfgSaving = cfgSaving.then(async () => {
       const fd = new FormData(f), s = clean(S.settings);
       WEEK.forEach((d) => { s.schedule[d] = { on: fd.get('on_' + d) === 'on', start: fd.get('start_' + d) || '08:30', end: fd.get('end_' + d) || '17:30' }; });
       ['grace', 'ot_min', 'ot_rate', 'ot_rate_off', 'day_divisor', 'hour_divisor', 'ssc_emp', 'ssc_er', 'ssc_cap', 'annual_leave', 'annual_leave_senior', 'senior_years', 'sick_leave'].forEach((k) => { const v = Number(fd.get(k)); if (Number.isFinite(v)) s[k] = v; });
@@ -1831,8 +1832,18 @@ function parsePunchRows(rows, preferOrder) {
       { const v = Number(fd.get('print_top_mm')); if (Number.isFinite(v)) s.print_top_mm = v; }
       s.start_date = String(fd.get('start_date') || '');
       if (!s.day_divisor || !s.hour_divisor) return toast('عدد الأيام والساعات يجب أن يكون أكبر من صفر.', true);
-      try { await put('hr/settings', s); UI.cfgDirty = false; render(true); toast('حُفظت الإعدادات'); } catch (e) { toast(dbMsg(e), true); }
-    }
+      try {
+        await put('hr/settings', s);
+        // keep the form as typed while the person is still on it (a re-render would drop their place); the button re-renders
+        if (fromButton) { UI.cfgDirty = false; render(true); }
+        toast('حُفظت الإعدادات');
+      } catch (e) { toast(dbMsg(e), true); }
+    });
+    return cfgSaving;
+  }
+  viewEl.addEventListener('submit', async (ev) => {
+    const f = ev.target; ev.preventDefault();
+    if (f.dataset.form === 'cfg') { await saveCfg(f, true); return; }
     if (f.dataset.form === 'pw') {
       const pw = String(new FormData(f).get('pw') || '');
       if (pw.length < 8) return toast('كلمة السر يجب أن تكون 8 أحرف على الأقل.', true);
