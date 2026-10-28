@@ -317,6 +317,8 @@ function countLeaveDays(ctx, start, end) {
   for (let d = start; d <= end; d = addDays(d, 1)) if (sched(ctx, d).type === 'work') n++;
   return n;
 }
+/* Standing field work (employee.field_from … field_to, open-ended when field_to is empty): every working day in the period counts as field work. */
+function fieldPeriodOn(emp, date) { return !!(emp && emp.field_from && date >= emp.field_from && (!emp.field_to || date <= emp.field_to)); }
 function evalDay(ctx, emp, date, today, now) {
   const st = ctx.settings, sc = sched(ctx, date);
   const r = (ctx.days[date] && ctx.days[date].rec && ctx.days[date].rec[emp.id]) || null;
@@ -330,6 +332,7 @@ function evalDay(ctx, emp, date, today, now) {
     const lv = leaveOn(ctx, emp.id, date);
     if (lv) { res.status = 'leave'; res.leave = lv; return res; }
   }
+  if (!res.mark && sc.type === 'work' && fieldPeriodOn(emp, date)) { res.mark = 'field'; res.fieldStanding = true; if (!res.note) res.note = 'عمل خارجي دائم'; }
   if (res.mark === 'field') { res.status = date > today ? 'future' : 'field'; return res; }
   if (sc.type !== 'work') {
     if (res.worked > 0) { res.status = 'offwork'; res.otOff = res.worked >= st.ot_min ? res.worked : 0; }
@@ -522,7 +525,7 @@ function parsePunchRows(rows, preferOrder) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.10.27-10';
+  const APP_VERSION = '2026.10.28-1';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -1013,7 +1016,7 @@ function parsePunchRows(rows, preferOrder) {
     const missingSal = activeEmps().filter((e) => !Number(e.basic_salary)).length;
     if (missingFp || missingSal) out += '<div class="banner gold">' + (missingFp ? '<span>' + int(missingFp) + ' موظف بدون رقم بصمة: يُحدَّد تلقائياً عند أول استيراد، أو أدخله يدوياً.</span>' : '') + (missingSal ? '<span>' + int(missingSal) + ' موظف بدون راتب أساسي: أدخله ليُحسب كشف الرواتب.</span>' : '') + '</div>';
     const tbl = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th>رقم البصمة</th><th>تاريخ التعيين</th><th class="n">سنوات الخدمة</th><th class="n">الراتب الأساسي</th><th class="n">العلاوات</th><th>الضمان</th><th>الهاتف</th><th>الحالة</th><th></th></tr></thead><tbody>' +
-      list.map((e) => '<tr><td>' + who(e, esc(e.title || '—')) + '</td><td class="num">' + esc(e.fp_id || '—') + '</td><td>' + dDate(e.hire_date) + '</td><td class="n">' + (e.hire_date ? yearsOfService(e, t).toFixed(1) : '—') + '</td><td class="n">' + (Number(e.basic_salary) ? money(e.basic_salary) : '<span class="due-warn">—</span>') + '</td><td class="n">' + money(e.allowances) + '</td><td>' + (e.ssc === false ? '<span class="muted">غير مشترك</span>' : chip(['مشترك', 'ok'])) + '</td><td class="num">' + esc(e.phone || '—') + '</td><td>' + (e.active === false ? chip(['غير فعّال', '']) : e.track === false ? chip(['معفى من البصمة', 'info']) : chip(['فعّال', 'ok'])) + '</td><td><button class="btn btn-sm" data-act="emp-edit" data-id="' + esc(e.id) + '">تعديل</button></td></tr>').join('') + '</tbody></table></div>';
+      list.map((e) => '<tr><td>' + who(e, esc(e.title || '—')) + '</td><td class="num">' + esc(e.fp_id || '—') + '</td><td>' + dDate(e.hire_date) + '</td><td class="n">' + (e.hire_date ? yearsOfService(e, t).toFixed(1) : '—') + '</td><td class="n">' + (Number(e.basic_salary) ? money(e.basic_salary) : '<span class="due-warn">—</span>') + '</td><td class="n">' + money(e.allowances) + '</td><td>' + (e.ssc === false ? '<span class="muted">غير مشترك</span>' : chip(['مشترك', 'ok'])) + '</td><td class="num">' + esc(e.phone || '—') + '</td><td>' + (e.active === false ? chip(['غير فعّال', '']) : e.track === false ? chip(['معفى من البصمة', 'info']) : e.field_from && (!e.field_to || e.field_to >= t) ? chip(['عمل خارجي' + (e.field_from > t ? ' من ' + dShort(e.field_from) : '') + (e.field_to ? ' حتى ' + dShort(e.field_to) : ''), 'info']) : chip(['فعّال', 'ok'])) + '</td><td><button class="btn btn-sm" data-act="emp-edit" data-id="' + esc(e.id) + '">تعديل</button></td></tr>').join('') + '</tbody></table></div>';
     return out + card('', tbl, { flush: true }) + '<label class="check"><input type="checkbox" id="emp-inactive" data-ch="emp-inactive"' + (UI.empShowInactive ? ' checked' : '') + '> إظهار الموظفين غير الفعّالين</label>';
   }
 
@@ -1185,7 +1188,7 @@ function parsePunchRows(rows, preferOrder) {
       body: '<p class="note" style="margin:0">' + esc(F.full.format(dateObj(date))) + ' · ' + chip(ST[r.status] || ['—', '']) + '</p>' +
         (punches.length ? '<p class="note" style="margin:0">بصمات الجهاز: <span class="num">' + punches.map(t12).join(' · ') + '</span></p>' : '<p class="note" style="margin:0">لا توجد بصمات من الجهاز لهذا اليوم. يمكنك إدخال الدخول والخروج يدوياً.</p>') +
         '<div class="form-grid"><label class="field"><span>وقت الدخول</span><input type="time" name="in" value="' + esc((man && man.in) || first) + '"></label><label class="field"><span>وقت الخروج</span><input type="time" name="out" value="' + esc((man && man.out) || last) + '"></label>' +
-        '<label class="field"><span>نوع اليوم</span><select name="mark"><option value="">حسب البصمة</option><option value="field"' + (man && man.mark === 'field' ? ' selected' : '') + '>عمل خارجي (عند عميل أو دائرة حكومية)</option></select></label>' +
+        '<label class="field"><span>نوع اليوم</span><select name="mark">' + (r.fieldStanding || (man && man.mark === 'office') ? '<option value="">عمل خارجي دائم (حسب ملف الموظف)</option><option value="office"' + (man && man.mark === 'office' ? ' selected' : '') + '>بالمكتب — حسب البصمة</option>' : '<option value="">حسب البصمة</option><option value="field"' + (man && man.mark === 'field' ? ' selected' : '') + '>عمل خارجي (عند عميل أو دائرة حكومية)</option>') + '</select></label>' +
         '<label class="field full"><span>ملاحظة</span><input type="text" name="note" value="' + esc((man && man.note) || '') + '" placeholder="مثل: نسي البصمة، مراجعة دائرة الضريبة"></label></div>',
       submit: 'حفظ',
       footLeft: man ? '<button type="button" class="btn btn-danger" data-act="att-clear" data-emp="' + esc(empId) + '" data-date="' + date + '">إلغاء التعديل اليدوي</button>' : '',
@@ -1237,6 +1240,8 @@ function parsePunchRows(rows, preferOrder) {
         '<label class="field"><span>الراتب الأساسي (دينار)</span><input type="number" name="basic_salary" step="0.001" min="0" value="' + esc(e.basic_salary || '') + '"></label><label class="field"><span>العلاوات الثابتة (دينار)</span><input type="number" name="allowances" step="0.001" min="0" value="' + esc(e.allowances || '') + '"></label>' +
         '<label class="field"><span>الإجازة السنوية (يوم/سنة)</span><input type="number" name="annual_days" min="0" step="1" value="' + esc(e.annual_days || '') + '" placeholder="تلقائي: ' + int(S.settings.annual_leave) + ' أو ' + int(S.settings.annual_leave_senior) + '"></label>' +
         '<label class="field"><span>الرصيد المدوّر (يوم)</span><input type="number" name="leave_open_balance" step="0.5" value="' + esc(e.leave_open_date ? (e.leave_open_balance ?? '') : '') + '"></label><label class="field"><span>الرصيد المدوّر كما في تاريخ</span><input type="date" name="leave_open_date" value="' + esc(e.leave_open_date || '') + '"></label>' +
+        '<label class="field"><span>عمل خارجي دائم — من تاريخ</span><input type="date" name="field_from" value="' + esc(e.field_from || '') + '"></label><label class="field"><span>إلى تاريخ <small>(فارغ = مستمر)</small></span><input type="date" name="field_to" value="' + esc(e.field_to || '') + '"></label>' +
+        '<p class="note full" style="margin:-.4rem 0 0">كل أيام الدوام بين التاريخين تُحسب «عمل خارجي» تلقائياً، دون تأخير أو غياب. الجمعة والعطل الرسمية تبقى عطلة. اتركهما فارغين للدوام العادي.</p>' +
         '<label class="field"><span>الهاتف</span><input type="tel" name="phone" value="' + esc(e.phone || '') + '"></label>' +
         '<label class="field"><span>الترتيب في القوائم</span><input type="number" name="order" min="0" value="' + esc(e.order || '') + '"></label>' +
         '<div class="field full" style="gap:.5rem"><label class="check"><input type="checkbox" name="ssc"' + (e.ssc !== false ? ' checked' : '') + '> مشترك بالضمان الاجتماعي</label><label class="check"><input type="checkbox" name="track"' + (e.track !== false ? ' checked' : '') + '> يخضع للبصمة والحضور</label><label class="check"><input type="checkbox" name="active"' + (e.active !== false ? ' checked' : '') + '> موظف فعّال</label></div>' +
@@ -1246,8 +1251,10 @@ function parsePunchRows(rows, preferOrder) {
       onSubmit: async (v) => {
         req(v.name, 'أدخل اسم الموظف.');
         if (v.fp_id && S.employees.some((x) => x.id !== e.id && normId(x.fp_id) === normId(v.fp_id))) throw 'رقم البصمة مستخدم لموظف آخر.';
+        if (v.field_to && !v.field_from) throw 'حدّد تاريخ بداية العمل الخارجي.';
+        if (v.field_from && v.field_to && v.field_to < v.field_from) throw 'تاريخ نهاية العمل الخارجي قبل تاريخ بدايته.';
         const id = isNew ? newId('emp-') : e.id;
-        const doc = { name: v.name, title: v.title || '', fp_id: v.fp_id ? normId(v.fp_id) : '', hire_date: v.hire_date || '', basic_salary: Number(v.basic_salary) || 0, allowances: Number(v.allowances) || 0, carry: Number(e.carry) || 0, annual_days: Number(v.annual_days) || 0, leave_open_balance: v.leave_open_balance === '' ? 0 : Number(v.leave_open_balance) || 0, leave_open_date: v.leave_open_balance === '' && !v.leave_open_date ? '' : v.leave_open_date || todayStr(), phone: v.phone || '', order: Number(v.order) || (isNew ? S.employees.length + 1 : e.order || 0), ssc: !!v.ssc, track: !!v.track, active: !!v.active, notes: v.notes || '' };
+        const doc = { name: v.name, title: v.title || '', fp_id: v.fp_id ? normId(v.fp_id) : '', hire_date: v.hire_date || '', basic_salary: Number(v.basic_salary) || 0, allowances: Number(v.allowances) || 0, carry: Number(e.carry) || 0, annual_days: Number(v.annual_days) || 0, leave_open_balance: v.leave_open_balance === '' ? 0 : Number(v.leave_open_balance) || 0, leave_open_date: v.leave_open_balance === '' && !v.leave_open_date ? '' : v.leave_open_date || todayStr(), field_from: v.field_from || '', field_to: v.field_from ? v.field_to || '' : '', phone: v.phone || '', order: Number(v.order) || (isNew ? S.employees.length + 1 : e.order || 0), ssc: !!v.ssc, track: !!v.track, active: !!v.active, notes: v.notes || '' };
         await put('employees/' + id, doc);
         toast('حُفظت بيانات ' + v.name);
       },

@@ -36,6 +36,7 @@ Sign-in is by **username** (the owner's is `ALABED`). The app maps a username to
 - Late = minutes after start when beyond `grace` (15). Overtime = minutes after end ≥ `ot_min`, paid at `ot_rate` 1.25; any work on an off day/holiday paid at `ot_rate_off` 1.5 (Jordan Labour Law art. 59).
 - Hourly wage = basic ÷ `day_divisor` (30) ÷ `hour_divisor` (8). SSC 7.5% employee / 14.25% employer on (basic + allowances) capped at `ssc_cap`.
 - Days before `settings.start_date` or an employee's `hire_date` are not evaluated.
+- Standing field work: `employee.field_from`…`field_to` (empty `field_to` = open-ended) makes every *working* day in the period status `field` (no late/absence; Fridays/holidays stay off; leave still wins). A day's own `mark` overrides it: `field` forces field work, `office` means go by the fingerprint.
 - Money is JOD with 3 decimals (fils).
 
 ## Never commit
