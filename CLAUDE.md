@@ -28,7 +28,7 @@ Sign-in is by **username** (the owner's is `ALABED`). The app maps a username to
 
 ## Fingerprint
 - Edge function `punch-ingest` (`supabase/functions/punch-ingest`, verify_jwt=false): checks header `x-bridge-key` against `bridge.key`, upserts punches, updates heartbeat.
-- `bridge/millennium_bridge.py`: Windows office PC, pyzk (ZKTeco, port 4370), live_capture + 30-min full re-sync, heartbeat every 5 min.
+- `bridge/millennium_bridge.py`: Windows office PC, pyzk (ZKTeco, port 4370). One long live_capture connection all day (the device beeps on every new connection, so never reconnect on a timer); TCP keep-alive detects a dead device; full re-sync on start, after errors, and once a night at 03:00. Heartbeat to the server every 5 min. Read-only: never send the device write/clear commands.
 - Files can also be imported in the app (attlog.dat / TXT / CSV / Excel).
 
 ## Calculation rules (in the `/*PURE-START*/` block of index.html)

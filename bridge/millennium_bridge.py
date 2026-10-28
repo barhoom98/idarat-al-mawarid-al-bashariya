@@ -3,6 +3,7 @@
 
 يعمل على كمبيوتر داخل شبكة المكتب: يتصل بجهاز البصمة (ZKTeco والأجهزة المتوافقة معه، المنفذ 4370)،
 ويرسل كل بصمة جديدة إلى نظام الموارد البشرية خلال ثوانٍ، ويرسل نبضة كل 5 دقائق ليظهر الجهاز "متصل".
+يبقى متصلاً بالجهاز طوال اليوم (الجهاز يصدر صوتاً عند كل اتصال جديد)، ويعيد المزامنة الكاملة مرة واحدة ليلاً الساعة 3.
 
   python millennium_bridge.py          تشغيل دائم (يُستخدم عند بدء ويندوز)
   python millennium_bridge.py --test   اختبار الاتصال بالجهاز وبالنظام ثم الخروج
@@ -116,10 +117,27 @@ def as_punch(a):
     return {"fp_id": str(a.user_id).strip(), "ts": a.timestamp.strftime(TS)}
 
 
+NIGHT_HOUR = 3  # the one routine reconnect + full re-sync per day, when nobody is in the office
+
+
 def connect(cfg):
     from zk import ZK  # pyzk
     zk = ZK(cfg["ip"], port=cfg["port"], timeout=10, password=cfg["password"], force_udp=False, ommit_ping=True)
-    return zk.connect()
+    conn = zk.connect()
+    keepalive(conn)
+    return conn
+
+
+def keepalive(conn):
+    """TCP keep-alive on the device socket: a device that is switched off or unplugged is noticed within ~3 minutes
+    (then we reconnect and re-sync) without sending the device any command — so it never beeps for it."""
+    try:
+        s = conn._ZK__sock
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        if hasattr(socket, "SIO_KEEPALIVE_VALS"):  # Windows: start after 60 s idle, probe every 10 s
+            s.ioctl(socket.SIO_KEEPALIVE_VALS, (1, 60000, 10000))
+    except Exception:
+        pass
 
 
 def full_sync(conn, server, state):
@@ -162,7 +180,10 @@ def run_forever(cfg):
                 if time.time() - beat > 300:
                     server.send([])
                     beat = time.time()
-                if time.time() - started > 1800:  # reconnect every 30 minutes and re-sync, in case an event was missed
+                now = datetime.now()
+                if now.hour == NIGHT_HOUR and state.get("night") != now.strftime("%Y-%m-%d") and time.time() - started > 3600:
+                    state["night"] = now.strftime("%Y-%m-%d")  # once a night: reconnect and re-sync, in case an event was missed
+                    save_state(state)
                     conn.end_live_capture = True
         except Exception as e:  # device off, network down, internet down: wait and try again
             say("خطأ: %s — إعادة المحاولة بعد 30 ثانية" % e)
