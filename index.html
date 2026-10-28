@@ -271,6 +271,12 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
 <script>
 /*PURE-START*/
 const pad = (n) => String(n).padStart(2, '0');
+/* Presses within `gap` minutes of the last kept one are the same punch (people often press twice). */
+function collapsePunches(list, gap) {
+  const g = Number(gap) >= 0 ? Number(gap) : 10, out = [];
+  for (const t of list) { if (!out.length || toMin(t) - toMin(out[out.length - 1]) >= g) out.push(t); }
+  return out;
+}
 const toMin = (t) => { if (!t) return null; const m = /^(\d{1,2}):(\d{2})/.exec(String(t)); return m ? +m[1] * 60 + +m[2] : null; };
 const fromMin = (m) => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
 const dateObj = (s) => new Date(s + 'T00:00:00Z');
@@ -285,7 +291,7 @@ const DEFAULTS = {
   company_ar: 'شركة الألفية للخدمات الضريبية والمحاسبية',
   company_en: 'Millennium Tax and Accounting Services',
   schedule: { 6: { on: true, start: '08:30', end: '17:30' }, 0: { on: true, start: '08:30', end: '17:30' }, 1: { on: true, start: '08:30', end: '17:30' }, 2: { on: true, start: '08:30', end: '17:30' }, 3: { on: true, start: '08:30', end: '17:30' }, 4: { on: true, start: '08:30', end: '14:30' }, 5: { on: false, start: '08:30', end: '14:30' } },
-  grace: 15, ot_min: 15, ot_rate: 1.25, ot_rate_off: 1.5, day_divisor: 30, hour_divisor: 8,
+  grace: 15, ot_min: 15, punch_gap: 10, ot_rate: 1.25, ot_rate_off: 1.5, day_divisor: 30, hour_divisor: 8,
   ssc_emp: 7.5, ssc_er: 14.25, ssc_cap: 3349,
   ded_absence: true, ded_unpaid: true, ded_late: false,
   annual_leave: 14, annual_leave_senior: 21, senior_years: 5, sick_leave: 14,
@@ -322,7 +328,7 @@ function fieldPeriodOn(emp, date) { return !!(emp && emp.field_from && date >= e
 function evalDay(ctx, emp, date, today, now) {
   const st = ctx.settings, sc = sched(ctx, date);
   const r = (ctx.days[date] && ctx.days[date].rec && ctx.days[date].rec[emp.id]) || null;
-  const p = r && Array.isArray(r.p) ? r.p.slice().sort() : [];
+  const p = r && Array.isArray(r.p) ? collapsePunches(r.p.slice().sort(), st.punch_gap) : [];
   const inT = (r && r.in) || p[0] || null;
   const outT = (r && r.out) || (p.length > 1 ? p[p.length - 1] : null);
   const i = toMin(inT), o = toMin(outT);
@@ -448,6 +454,8 @@ const RX_D_YMD = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/;
 const RX_D_XYY = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/;
 const RX_T = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|ص|م)?$/i;
 const normId = (s) => String(s == null ? '' : s).trim().replace(/^0+(?=\d)/, '');
+/* An employee may own several device numbers ("11, 1"), e.g. when the device files one person's finger under another number. */
+const fpIds = (v) => String(v == null ? '' : v).split(/[\s,،؛;]+/).map(normId).filter(Boolean);
 function textToRows(text) {
   return String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
     const sep = l.includes('\t') ? '\t' : l.includes(';') ? ';' : l.includes(',') ? ',' : null;
@@ -525,7 +533,7 @@ function parsePunchRows(rows, preferOrder) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.10.28-1';
+  const APP_VERSION = '2026.10.28-2';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -685,7 +693,7 @@ function parsePunchRows(rows, preferOrder) {
   /* merge device punches + manual corrections into the per-day view evalDay() reads */
   function rebuildDays() {
     const byFp = {};
-    S.employees.forEach((e) => { if (e.fp_id) byFp[normId(e.fp_id)] = e.id; });
+    S.employees.forEach((e) => fpIds(e.fp_id).forEach((f) => (byFp[f] = e.id)));
     const days = {};
     const slot = (d, emp) => { const day = (days[d] = days[d] || { date: d, rec: {} }); return (day.rec[emp] = day.rec[emp] || { p: [] }); };
     for (const p of S.punches) { const emp = byFp[p.fp]; if (emp) { const r = slot(p.date, emp); if (!r.p.includes(p.time)) r.p.push(p.time); } }
@@ -1236,7 +1244,7 @@ function parsePunchRows(rows, preferOrder) {
     openModal({
       title: isNew ? 'إضافة موظف' : 'تعديل ' + esc(e.name), wide: true,
       body: '<div class="form-grid"><label class="field"><span>الاسم الكامل</span><input type="text" name="name" value="' + esc(e.name || '') + '" required></label><label class="field"><span>المسمى الوظيفي</span><input type="text" name="title" value="' + esc(e.title || '') + '" placeholder="مثل: محاسب، مدقق ضريبي"></label>' +
-        '<label class="field"><span>رقم البصمة على الجهاز</span><input type="text" name="fp_id" inputmode="numeric" value="' + esc(e.fp_id || '') + '"></label><label class="field"><span>تاريخ التعيين</span><input type="date" name="hire_date" value="' + esc(e.hire_date || '') + '"></label>' +
+        '<label class="field"><span>رقم البصمة على الجهاز <small>(أكثر من رقم: افصل بفاصلة)</small></span><input type="text" name="fp_id" dir="ltr" value="' + esc(e.fp_id || '') + '"></label><label class="field"><span>تاريخ التعيين</span><input type="date" name="hire_date" value="' + esc(e.hire_date || '') + '"></label>' +
         '<label class="field"><span>الراتب الأساسي (دينار)</span><input type="number" name="basic_salary" step="0.001" min="0" value="' + esc(e.basic_salary || '') + '"></label><label class="field"><span>العلاوات الثابتة (دينار)</span><input type="number" name="allowances" step="0.001" min="0" value="' + esc(e.allowances || '') + '"></label>' +
         '<label class="field"><span>الإجازة السنوية (يوم/سنة)</span><input type="number" name="annual_days" min="0" step="1" value="' + esc(e.annual_days || '') + '" placeholder="تلقائي: ' + int(S.settings.annual_leave) + ' أو ' + int(S.settings.annual_leave_senior) + '"></label>' +
         '<label class="field"><span>الرصيد المدوّر (يوم)</span><input type="number" name="leave_open_balance" step="0.5" value="' + esc(e.leave_open_date ? (e.leave_open_balance ?? '') : '') + '"></label><label class="field"><span>الرصيد المدوّر كما في تاريخ</span><input type="date" name="leave_open_date" value="' + esc(e.leave_open_date || '') + '"></label>' +
@@ -1250,11 +1258,12 @@ function parsePunchRows(rows, preferOrder) {
       footLeft: isNew ? '' : '<button type="button" class="btn btn-danger" data-act="emp-del" data-id="' + esc(e.id) + '">حذف الموظف</button>',
       onSubmit: async (v) => {
         req(v.name, 'أدخل اسم الموظف.');
-        if (v.fp_id && S.employees.some((x) => x.id !== e.id && normId(x.fp_id) === normId(v.fp_id))) throw 'رقم البصمة مستخدم لموظف آخر.';
+        const fps = fpIds(v.fp_id), clash = fps.find((f) => S.employees.some((x) => x.id !== e.id && fpIds(x.fp_id).includes(f)));
+        if (clash) throw 'رقم البصمة ' + clash + ' مستخدم لموظف آخر.';
         if (v.field_to && !v.field_from) throw 'حدّد تاريخ بداية العمل الخارجي.';
         if (v.field_from && v.field_to && v.field_to < v.field_from) throw 'تاريخ نهاية العمل الخارجي قبل تاريخ بدايته.';
         const id = isNew ? newId('emp-') : e.id;
-        const doc = { name: v.name, title: v.title || '', fp_id: v.fp_id ? normId(v.fp_id) : '', hire_date: v.hire_date || '', basic_salary: Number(v.basic_salary) || 0, allowances: Number(v.allowances) || 0, carry: Number(e.carry) || 0, annual_days: Number(v.annual_days) || 0, leave_open_balance: v.leave_open_balance === '' ? 0 : Number(v.leave_open_balance) || 0, leave_open_date: v.leave_open_balance === '' && !v.leave_open_date ? '' : v.leave_open_date || todayStr(), field_from: v.field_from || '', field_to: v.field_from ? v.field_to || '' : '', phone: v.phone || '', order: Number(v.order) || (isNew ? S.employees.length + 1 : e.order || 0), ssc: !!v.ssc, track: !!v.track, active: !!v.active, notes: v.notes || '' };
+        const doc = { name: v.name, title: v.title || '', fp_id: fps.join(', '), hire_date: v.hire_date || '', basic_salary: Number(v.basic_salary) || 0, allowances: Number(v.allowances) || 0, carry: Number(e.carry) || 0, annual_days: Number(v.annual_days) || 0, leave_open_balance: v.leave_open_balance === '' ? 0 : Number(v.leave_open_balance) || 0, leave_open_date: v.leave_open_balance === '' && !v.leave_open_date ? '' : v.leave_open_date || todayStr(), field_from: v.field_from || '', field_to: v.field_from ? v.field_to || '' : '', phone: v.phone || '', order: Number(v.order) || (isNew ? S.employees.length + 1 : e.order || 0), ssc: !!v.ssc, track: !!v.track, active: !!v.active, notes: v.notes || '' };
         await put('employees/' + id, doc);
         toast('حُفظت بيانات ' + v.name);
       },
@@ -1869,7 +1878,7 @@ function parsePunchRows(rows, preferOrder) {
     const r = parsePunchRows(UI.imp.rows, UI.impOrder);
     UI.imp.punches = r.punches; UI.imp.order = r.order; UI.imp.bad = r.bad;
     const fps = [...new Set(r.punches.map((p) => p.fp))];
-    fps.forEach((fp) => { if (UI.impMap[fp] == null || UI.impMap[fp] === '') { const e = S.employees.find((x) => x.fp_id && normId(x.fp_id) === fp); UI.impMap[fp] = e ? e.id : ''; } });
+    fps.forEach((fp) => { if (UI.impMap[fp] == null || UI.impMap[fp] === '') { const e = S.employees.find((x) => fpIds(x.fp_id).includes(fp)); UI.impMap[fp] = e ? e.id : ''; } });
   }
   async function runImport() {
     const imp = UI.imp; if (!imp || !imp.punches || UI.impBusy) return;
@@ -1878,7 +1887,7 @@ function parsePunchRows(rows, preferOrder) {
       for (const [fp, empId] of Object.entries(UI.impMap)) {
         if (!empId) continue;
         const e = empById(empId);
-        if (e && normId(e.fp_id) !== fp) { const { id, ...rest } = e; await put('employees/' + id, { ...rest, fp_id: fp }); }
+        if (e && !fpIds(e.fp_id).includes(fp)) { const { id, ...rest } = e; await put('employees/' + id, { ...rest, fp_id: fpIds(e.fp_id).concat(fp).join(', ') }); }
       }
       const rows = [], seen = new Set();
       imp.punches.forEach((p) => { if (!UI.impMap[p.fp]) return; const k = p.fp + p.date + p.time; if (seen.has(k)) return; seen.add(k); rows.push({ fp_id: p.fp, punched_at: p.date + ' ' + p.time + ':00', source: 'import' }); });
