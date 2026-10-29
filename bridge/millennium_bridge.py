@@ -96,12 +96,18 @@ def save_state(state):
     os.replace(tmp, STATE)
 
 
+VERSION = "2026.10.29"
+
+
 class Server:
     def __init__(self, cfg):
         self.url, self.key, self.device = cfg["url"], cfg["key"], cfg["name"]
 
-    def send(self, punches):
-        body = json.dumps({"device": self.device, "punches": punches}).encode("utf-8")
+    def send(self, punches, status=None):
+        payload = {"device": self.device, "punches": punches}
+        if status:
+            payload["status"] = status
+        body = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(self.url, data=body, method="POST",
                                      headers={"content-type": "application/json", "x-bridge-key": self.key})
         try:
@@ -118,6 +124,7 @@ def as_punch(a):
 
 
 NIGHT_HOUR = 3  # the one routine reconnect + full re-sync per day, when nobody is in the office
+RETRY = [30, 60, 120, 300, 600]  # seconds to wait after the 1st, 2nd, … failed device connection in a row
 
 
 def connect(cfg):
@@ -125,6 +132,7 @@ def connect(cfg):
     zk = ZK(cfg["ip"], port=cfg["port"], timeout=10, password=cfg["password"], force_udp=False, ommit_ping=True)
     conn = zk.connect()
     keepalive(conn)
+    quiet(conn)
     return conn
 
 
@@ -140,54 +148,102 @@ def keepalive(conn):
         pass
 
 
-def full_sync(conn, server, state):
-    """Send everything since the last confirmed punch (with a 2-day overlap; the server ignores duplicates)."""
+def quiet(conn):
+    """pyzk's live_capture first resets the fingerprint reader (CMD_CANCELCAPTURE then CMD_STARTVERIFY), which makes the
+    device beep. The reader is already waiting for fingers, so skip both; live_capture then only subscribes to punches."""
+    conn.cancel_capture = lambda: True
+    conn.verify_user = lambda: True
+
+
+class Uplink:
+    """Sends punches to the server. If the internet is down, punches wait in state.json and go with the next send,
+    so an internet problem never makes us reconnect to the device."""
+
+    def __init__(self, server, state):
+        self.server, self.state = server, state
+        self.status = {"version": VERSION, "connects_today": 0, "day": "", "last_error": "", "last_error_at": ""}
+
+    def note_error(self, e):
+        self.status["last_error"] = str(e)[:300]
+        self.status["last_error_at"] = datetime.now().strftime(TS)
+
+    def note_connect(self):
+        today = datetime.now().strftime("%Y-%m-%d")
+        if self.status["day"] != today:
+            self.status["day"], self.status["connects_today"] = today, 0
+        self.status["connects_today"] += 1
+        self.status["connected_at"] = datetime.now().strftime(TS)
+
+    def push(self, punches=()):
+        pend = self.state.setdefault("pending", [])
+        if punches:
+            pend.extend(punches)
+            save_state(self.state)
+        try:
+            for i in range(0, max(len(pend), 1), 1000):
+                self.server.send(pend[i:i + 1000], self.status)
+            if pend:
+                self.state["pending"] = []
+                save_state(self.state)
+            return True
+        except Exception as e:
+            self.note_error(e)
+            say("تعذّر الإرسال للنظام (%s) — %d حركة بالانتظار وتُرسل لاحقاً" % (e, len(pend)))
+            return False
+
+
+def full_sync(conn, up, state):
+    """Send everything since the last punch we saw (with a 2-day overlap; the server ignores duplicates)."""
     records = conn.get_attendance() or []
     if state.get("last"):
         since = datetime.strptime(state["last"], TS) - timedelta(days=2)
     else:
         since = datetime.now() - timedelta(days=60)
     fresh = [a for a in records if a.timestamp >= since]
-    for i in range(0, len(fresh), 1000):
-        server.send([as_punch(a) for a in fresh[i:i + 1000]])
     if fresh:
         state["last"] = max(a.timestamp for a in fresh).strftime(TS)
-        save_state(state)
-    server.send([])  # heartbeat
-    say("مزامنة: أُرسلت %d حركة من أصل %d في الجهاز" % (len(fresh), len(records)))
+    up.push([as_punch(a) for a in fresh])
+    say("مزامنة: %d حركة من أصل %d في الجهاز" % (len(fresh), len(records)))
 
 
 def run_forever(cfg):
     if not single_instance():
         say("الجسر يعمل مسبقاً على هذا الكمبيوتر — لا حاجة لتشغيله مرة ثانية.")
         return
-    server = Server(cfg)
     state = load_state()
-    say("بدء جسر البصمة — الجهاز %s:%s" % (cfg["ip"], cfg["port"]))
+    up = Uplink(Server(cfg), state)
+    say("بدء جسر البصمة %s — الجهاز %s:%s" % (VERSION, cfg["ip"], cfg["port"]))
+    fails = 0
     while True:
         conn = None
         try:
             conn = connect(cfg)
-            full_sync(conn, server, state)
+            up.note_connect()
+            full_sync(conn, up, state)
+            fails = 0
             started = beat = time.time()
             for a in conn.live_capture(new_timeout=30):
                 if a is not None:
-                    server.send([as_punch(a)])
                     state["last"] = a.timestamp.strftime(TS)
-                    save_state(state)
+                    up.push([as_punch(a)])
                     say("بصمة: رقم %s الساعة %s" % (a.user_id, a.timestamp.strftime("%H:%M")))
                     beat = time.time()
                 if time.time() - beat > 300:
-                    server.send([])
+                    up.push()  # heartbeat (also retries anything waiting)
                     beat = time.time()
                 now = datetime.now()
                 if now.hour == NIGHT_HOUR and state.get("night") != now.strftime("%Y-%m-%d") and time.time() - started > 3600:
                     state["night"] = now.strftime("%Y-%m-%d")  # once a night: reconnect and re-sync, in case an event was missed
                     save_state(state)
                     conn.end_live_capture = True
-        except Exception as e:  # device off, network down, internet down: wait and try again
-            say("خطأ: %s — إعادة المحاولة بعد 30 ثانية" % e)
-            time.sleep(30)
+            say("انتهى الاتصال بالجهاز — إعادة الاتصال")
+        except Exception as e:  # device off, another program holding it, network down: wait, longer each time
+            wait = RETRY[min(fails, len(RETRY) - 1)]
+            fails += 1
+            up.note_error(e)
+            say("خطأ بالاتصال بالجهاز: %s — إعادة المحاولة بعد %d ثانية" % (e, wait))
+            up.push()  # tell the server what happened (shows why the device dropped)
+            time.sleep(wait)
         finally:
             try:
                 if conn:

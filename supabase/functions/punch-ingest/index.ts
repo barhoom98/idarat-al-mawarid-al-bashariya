@@ -1,6 +1,7 @@
 // Receives fingerprint punches from the office bridge program (bridge/millennium_bridge.py).
 // Auth: header x-bridge-key must equal public.bridge.key (shown and regenerated in the app's settings).
-// Body: { device: string, punches: [{ fp_id: "3", ts: "2026-10-27 08:31:22" }] } — an empty list is a heartbeat.
+// Body: { device: string, punches: [{ fp_id: "3", ts: "2026-10-27 08:31:22" }], status?: {...} } — an empty list is a heartbeat;
+// status (version, connects_today, last_error…) is stored in public.bridge.status for troubleshooting.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 
@@ -31,6 +32,8 @@ Deno.serve(async (req: Request) => {
     return json({ error: "bad_json" }, 400);
   }
   const device = String(body?.device ?? "").slice(0, 64);
+  const rawStatus = (body as { status?: unknown } | null)?.status;
+  const status = rawStatus && typeof rawStatus === "object" && JSON.stringify(rawStatus).length <= 2000 ? rawStatus : null;
   const list = Array.isArray(body?.punches) ? (body!.punches as unknown[]).slice(0, 5000) : [];
 
   const seen = new Set<string>();
@@ -55,6 +58,6 @@ Deno.serve(async (req: Request) => {
     if (error) return json({ error: error.message }, 500);
     inserted = data?.length ?? 0;
   }
-  await sb.from("bridge").update({ last_seen: new Date().toISOString(), device }).eq("id", "main");
+  await sb.from("bridge").update({ last_seen: new Date().toISOString(), device, ...(status ? { status } : {}) }).eq("id", "main");
   return json({ received: rows.length, inserted });
 });
