@@ -2,6 +2,8 @@
 
 Internal HR web app for شركة الألفية للخدمات الضريبية والمحاسبية (Amman, Jordan). Arabic, RTL. The owner asks for changes in Arabic; answer in Arabic.
 
+**New session? Read `docs/HANDOFF.md` first:** history of the original build conversation, live-system facts, the office fingerprint setup, and open threads with the owner. Tests: `tests/README.md`.
+
 **Owner's standing request:** after every change, end the reply with the live link on its own line: https://barhoom98.github.io/idarat-al-mawarid-al-bashariya/ (the URL never changes; pushing to `main` updates it).
 
 ## Stack
