@@ -12,7 +12,7 @@ Internal HR web app for شركة الألفية للخدمات الضريبية 
 - Backend: Supabase project `millennium-hr` (ref `nxhlxwpwpyicyprnsdfp`, eu-central-1). Client: supabase-js 2.49.4 UMD from jsDelivr (fallbacks in `index.html`).
 - After changing `index.html` or other shell files, bump `CACHE` in `sw.js` and `APP_VERSION` in `index.html` (shown in the side rail, so the owner can confirm they have the latest). The page reloads itself once when a new service worker takes over.
 - Choosing a client anywhere uses `clientPicker()` (searchable box: name, tax number or accountant; Arabic letters normalised by `normAr`) — use it for any new client field instead of a plain `<select>`.
-- Printing: documents render as `.lvdoc` HTML, shown in a preview dialog; «طباعة» prints only `#print-root`, «حفظ PDF / مشاركة» uses html2pdf.js (cdnjs) and the share sheet on phones.
+- Printing: the leave form and payslips are built by `letterDoc()` (one `.lvdoc`, one `.sheet` per A4 page, letterhead unless «ورق مروّس جاهز») and shown in a preview dialog; «طباعة» prints only `#print-root`, «حفظ PDF / مشاركة» uses html2pdf.js (cdnjs), one canvas per sheet, and the share sheet on phones. `rtlCanvasText()` makes html2canvas draw Arabic right-to-left while a PDF renders (without it, words run together and «:» «(» jump).
 
 ## Data model (Supabase, schema public)
 - Document tables `(id text pk, data jsonb, updated_at)`: `settings` (row `main`), `employees`, `leaves`, `clients`, `tasks`, `payroll` (id = `YYYY-MM`; `locked`, `rows` snapshot, `adj` per employee).

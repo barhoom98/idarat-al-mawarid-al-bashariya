@@ -31,6 +31,7 @@ The order follows `git log`:
 10. **Several device numbers per employee** (`fp_id` "11, 1"). Presses within 10 minutes count as one.
 11. **Settings autosave:** settings save on every change. A ticked box used to be lost unless the button at the bottom was pressed. The SSC cap was set to 2026's JD 3,733.
 12. **Bridge:** one long connection; `quiet()` reconnects; back-off on failed connects; an offline queue; status reported to `public.bridge.status`.
+13. **Payslips in the print preview** (12 Nov, first Claude Code session, `APP_VERSION` 2026.11.12): «طباعة / PDF» in a payslip and «كشوف الموظفين للطباعة» open the same preview as the leave form instead of downloading an HTML file; all payslips print or save as one PDF, one page per employee. The same change fixed Arabic text in every saved PDF (words had run together, and «:» and brackets sat on the wrong side).
 
 ## Live system facts (12 Nov 2026)
 
@@ -121,7 +122,6 @@ Edge function logs (`function_edge_logs`, request `content_length`) tell you wha
    - a separate SSC-registered wage per employee;
    - leave balances for emp-01 and emp-07;
    - whether emergency leave counts against annual leave;
-   - the payslip using the same print/PDF preview as the leave form;
    - moving `start_date` earlier to report on older punches.
 
 ## How to work on it

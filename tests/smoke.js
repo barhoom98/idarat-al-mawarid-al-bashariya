@@ -73,6 +73,17 @@ const stub = `(() => {
       await p.goto('http://app.local/#' + h); await p.waitForTimeout(500);
       if (outDir) { fs.mkdirSync(outDir, { recursive: true }); await p.screenshot({ path: path.join(outDir, label + '-' + h + '.png'), fullPage: true }); }
     }
+    // printed documents open in the preview: payslips one A4 sheet per employee, the leave form one sheet
+    const sheets = async (open) => { await p.evaluate(open); await p.waitForTimeout(300); const n = await p.$$eval('.doc-wrap .lvdoc > .sheet', (x) => x.length); await p.evaluate(() => document.querySelector('[data-act="modal-close"]').click()); return n; };
+    await p.goto('http://app.local/#payroll'); await p.waitForTimeout(500);
+    const rows = await p.$$eval('[data-act="pay-slip"]', (x) => x.length);
+    let n = await sheets(() => document.querySelector('[data-act="slips-all"]').click());
+    if (!rows || n !== rows) errs.push(label + ': all payslips gave ' + n + ' sheets for ' + rows + ' employees');
+    n = await sheets(() => { document.querySelector('[data-act="pay-slip"]').click(); document.querySelector('[data-act="slip-dl"]').click(); });
+    if (n !== 1) errs.push(label + ': one payslip gave ' + n + ' sheets');
+    await p.goto('http://app.local/#leaves'); await p.waitForTimeout(500);
+    n = await sheets(() => document.querySelector('[data-act="leave-print"]').click());
+    if (n !== 1) errs.push(label + ': leave form gave ' + n + ' sheets');
     await p.close();
   }
   await b.close();
