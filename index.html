@@ -211,17 +211,154 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
 .skel { height: 1rem; border-radius: 6px; background: var(--line-2); }
 .loading { display: grid; gap: .8rem; padding: 1rem 0; }
 
+/* Icons, and the cards a phone shows instead of tables: every record is one card; tapping it opens the rest. */
+.ic { width: 1.3em; height: 1.3em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.nav-l { display: inline-flex; align-items: center; gap: .6rem; }
+.nav a .ic { color: var(--char-muted); }
+.nav a[aria-current="page"] .ic { color: var(--gold); }
+.tabbar { display: none; }
+.recs { display: grid; gap: .55rem; }
+.rec { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); min-width: 0; }
+.rec-h { display: flex; align-items: center; gap: .7rem; padding: .7rem .85rem; min-height: 3.5rem; list-style: none; }
+.rec-h::-webkit-details-marker { display: none; }
+summary.rec-h, .rec-h[role="button"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.rec-t { flex: 1; min-width: 0; display: grid; gap: .1rem; }
+.rec-t b { font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.rec-t small { color: var(--muted); font-size: var(--t-xs); line-height: 1.55; overflow-wrap: anywhere; }
+.rec-c { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .25rem; }
+.rec-e { flex: none; max-width: 46%; display: grid; gap: .1rem; justify-items: end; text-align: end; }
+.rec-e b { font-family: var(--f-display); font-weight: 600; font-size: var(--t-lg); line-height: 1.25; }
+.rec-e small { color: var(--muted); font-size: var(--t-xs); }
+.rec-v { color: var(--muted); width: 1.1em; height: 1.1em; }
+details[open] > summary .rec-v { transform: rotate(180deg); }
+.rec-b { display: grid; gap: .7rem; padding: .75rem .85rem .85rem; border-top: 1px solid var(--line-2); }
+.rec-i { width: 2.3rem; height: 2.3rem; border-radius: 10px; background: var(--char); color: var(--gold); display: grid; place-items: center; flex: none; }
+.rec.is-bad { border-inline-start: 4px solid var(--bad); } .rec.is-warn { border-inline-start: 4px solid var(--warn); } .rec.is-gold { border-inline-start: 4px solid var(--gold); }
+.rec.is-done { opacity: .75; } .rec.is-off { background: var(--sheet-2); box-shadow: none; }
+.rec-a { display: flex; flex-wrap: wrap; gap: .45rem; }
+.rec-a .btn { flex: 1 1 auto; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; }
+.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stats > div { background: var(--sheet-2); border-radius: var(--r-sm); padding: .4rem .55rem; display: grid; gap: .05rem; min-width: 0; align-content: start; }
+.stats span { font-size: var(--t-xs); color: var(--muted); line-height: 1.45; }
+.stats b { font-weight: 600; overflow-wrap: anywhere; }
+.stats .is-bad b { color: var(--bad); } .stats .is-warn b { color: var(--warn); } .stats .is-ok b { color: var(--ok); } .stats .is-info b { color: var(--info); } .stats .is-gold b { color: var(--gold-ink); }
+.card > .stats { padding: .7rem .85rem; }
+.pick { display: flex; flex-wrap: wrap; gap: .35rem; }
+.pick button { border: 1px solid var(--line); background: var(--sheet); color: var(--ink); border-radius: 99px; padding: .4rem .85rem; font-size: var(--t-sm); font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: .35rem; }
+.pick button b { font-weight: 700; }
+.pick button[aria-pressed="true"] { background: var(--char); border-color: var(--char); color: var(--gold); }
+.pick button.warn[aria-pressed="true"] { background: var(--warn); border-color: var(--warn); color: var(--sheet); }
+.pick button.bad[aria-pressed="true"] { background: var(--bad); border-color: var(--bad); color: var(--sheet); }
+.pick button.ok[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: var(--sheet); }
+.pick-l { font-size: var(--t-xs); font-weight: 600; color: var(--muted); margin-bottom: -.35rem; }
+button.tile { font: inherit; color: inherit; text-align: start; cursor: pointer; }
+button.tile[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-soft); }
+.sect > summary { cursor: pointer; list-style: none; flex-wrap: nowrap; -webkit-tap-highlight-color: transparent; }
+.sect > summary::-webkit-details-marker { display: none; }
+.sect > summary h2 { flex: 1; min-width: 0; }
+.sect:not([open]) > summary { border-bottom: 0; }
+.btn-wa { background: var(--ok); border-color: var(--ok); color: var(--sheet); font-weight: 600; }
+.btn-wa:hover { border-color: var(--ok); filter: brightness(1.06); }
+.btn .ic { width: 1.15em; height: 1.15em; }
+.card .rec { box-shadow: none; }
+.fold > summary { list-style: none; cursor: pointer; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold-b { margin-top: .6rem; }
+.li[role="button"] { cursor: pointer; }
+.tbl tr.pr-urgent td:first-child { border-inline-start: 3px solid var(--bad); }
+.tbl tr.pr-high td:first-child { border-inline-start: 3px solid var(--warn); }
+.per-grid { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0 1.75rem; }
+
+/* Section tiles (home, «المزيد»): the logo's gold mark on its charcoal wall, with the section's live numbers. */
+.app-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+.app-tile { position: relative; background: var(--sheet); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: .8rem .9rem; display: grid; grid-template-columns: auto 1fr; gap: .1rem .6rem; align-items: center; text-decoration: none; color: var(--ink); min-width: 0; -webkit-tap-highlight-color: transparent; }
+.app-tile:active { border-color: var(--gold); }
+.app-i { width: 2.7rem; height: 2.7rem; border-radius: 13px; background: var(--char); color: var(--gold); display: grid; place-items: center; margin-bottom: .35rem; }
+.app-i .ic { width: 1.45rem; height: 1.45rem; }
+.app-tile strong { justify-self: end; align-self: start; font-family: var(--f-display); font-weight: 600; font-size: 1.55rem; line-height: 1.2; }
+.app-tile strong.txt { font-size: var(--t-md); padding-top: .35rem; }
+.app-tile b { grid-column: 1 / -1; font-family: var(--f-display); font-weight: 600; }
+.app-tile small { grid-column: 1 / -1; color: var(--muted); font-size: var(--t-xs); line-height: 1.5; }
+.app-tile.is-bad strong { color: var(--bad); } .app-tile.is-warn strong { color: var(--warn); } .app-tile.is-ok strong { color: var(--ok); } .app-tile.is-gold strong { color: var(--gold-ink); }
+.voice-cta { display: flex; align-items: center; gap: .85rem; width: 100%; background: var(--char); color: var(--char-ink); border: 0; border-radius: 16px; padding: .8rem 1rem; text-align: start; cursor: pointer; font: inherit; box-shadow: var(--shadow); }
+.voice-cta > span:last-child { display: grid; gap: .05rem; }
+.voice-cta b { color: var(--gold); font-family: var(--f-display); font-weight: 600; }
+.voice-cta small { color: var(--char-muted); font-size: var(--t-xs); line-height: 1.5; }
+.mic-dot { width: 2.9rem; height: 2.9rem; border-radius: 50%; background: var(--gold); color: var(--on-gold); display: grid; place-items: center; flex: none; }
+.mic-dot .ic { width: 1.45rem; height: 1.45rem; }
+
+/* Voice entry inside the task form. */
+.voice { background: var(--sheet-2); border: 1px solid var(--line); border-radius: var(--r); padding: .8rem; display: grid; grid-template-columns: auto 1fr; gap: .65rem .8rem; align-items: center; }
+.voice-t b { display: block; font-weight: 600; }
+.voice-t small { color: var(--muted); font-size: var(--t-xs); line-height: 1.6; display: block; }
+.voice textarea { grid-column: 1 / -1; min-height: 3.6rem; }
+.voice-sum { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.voice-sum:empty { display: none; }
+.mic { position: relative; width: 4rem; height: 4rem; border-radius: 50%; border: 0; background: var(--gold); color: var(--on-gold); display: grid; place-items: center; cursor: pointer; flex: none; }
+.mic .ic { width: 1.8rem; height: 1.8rem; }
+.mic[aria-pressed="true"] { background: var(--bad); color: var(--sheet); }
+.chip-btn { border: 1px solid var(--gold); background: var(--gold-soft); color: var(--ink); border-radius: 99px; padding: .25rem .7rem; font-size: var(--t-xs); font-weight: 600; cursor: pointer; }
+.wa-msg { width: 100%; min-height: 15rem; line-height: 1.8; }
+.daynav { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: .4rem; align-items: center; }
+.sched-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: .5rem; align-items: center; padding: .45rem 0; border-bottom: 1px solid var(--line-2); }
+.sched-row:last-child { border-bottom: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .rec-v { transition: transform .15s; }
+  .mic[aria-pressed="true"]::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 3px solid var(--bad); animation: mic-pulse 1.3s ease-out infinite; }
+  @keyframes mic-pulse { from { transform: scale(.92); opacity: .9; } to { transform: scale(1.35); opacity: 0; } }
+}
+
 @media (max-width: 1000px) { .grid-main { grid-template-columns: minmax(0, 1fr); } }
+/* Phone: a slim charcoal bar on top, an icon tab bar at the bottom, dialogs as bottom sheets, and nothing that scrolls sideways. */
 @media (max-width: 860px) {
+  :root { --t-md: 1rem; }
+  html { -webkit-text-size-adjust: 100%; }
   .app { grid-template-columns: minmax(0, 1fr); }
-  .rail { position: sticky; top: 0; height: auto; z-index: 20; flex-direction: column; gap: .6rem; padding-top: calc(.7rem + env(safe-area-inset-top, 0px)); padding-bottom: .7rem; overflow: visible; }
+  .rail { position: sticky; top: 0; height: auto; z-index: 20; flex-direction: row; align-items: center; gap: .6rem; padding-top: calc(.5rem + env(safe-area-inset-top, 0px)); padding-bottom: .5rem; overflow: visible; }
   .brand img { width: 34px; height: 34px; }
   .brand b { font-size: 1rem; }
-  .nav { display: flex; overflow-x: auto; gap: .25rem; scrollbar-width: none; margin-inline: -4px; }
-  .nav a { flex: none; padding: .4rem .7rem; font-size: var(--t-sm); }
-  .nav a[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--gold); }
-  .rail-foot { display: none; }
-  .main { padding-block: 1rem 2.5rem; }
+  .nav, .rail-foot { display: none; }
+  .main { padding-block: 1rem calc(5.6rem + env(safe-area-inset-bottom, 0px)); overflow-x: clip; }
+  .wrap { gap: 1rem; }
+  .page-head { gap: .6rem; }
+  .page-head h1 { font-size: 1.3rem; }
+  .page-head .actions { width: 100%; }
+  .page-head .actions > .btn { flex: 1 1 auto; }
+  .page-head .seg { display: flex; width: 100%; }
+  .page-head .seg button { flex: 1; padding: .5rem .3rem; }
+  .btn { min-height: 2.6rem; padding: .5rem .9rem; }
+  .btn-sm { min-height: 2.2rem; padding: .3rem .75rem; font-size: var(--t-sm); }
+  .card-h { padding: .75rem .85rem; }
+  .card-b { padding: .85rem; }
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+  .tile { padding: .55rem .65rem; }
+  .tile span { font-size: var(--t-xs); line-height: 1.45; }
+  .tile b { font-size: 1.35rem; }
+  .toolbar .field, .toolbar .cpick-field { flex: 1 1 8.5rem; max-width: none; }
+  .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
+  .form-grid .full, .form-grid .wide-p, .form-grid .cpick-field { grid-column: 1 / -1; }
+  .li:has(> .end.actions) { flex-wrap: wrap; }
+  .li .end.actions { flex: 1 1 100%; }
+  .li .end.actions .btn { flex: 1; }
+  .overlay { place-items: end center; padding: env(safe-area-inset-top, 0px) 0 0; }
+  .modal, .modal.wide { width: 100%; max-height: calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px)); border-radius: 18px 18px 0 0; border-bottom: 0; }
+  .modal-h { padding: .85rem 1rem; border-radius: 18px 18px 0 0; }
+  .modal-b { padding: 1rem; }
+  .modal-f { position: sticky; bottom: 0; z-index: 1; background: var(--sheet); padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom, 0px)); }
+  .modal-f .actions { flex: 1 1 100%; }
+  .modal-f .btn { flex: 1 1 auto; }
+  .toast { bottom: auto; top: calc(4.2rem + env(safe-area-inset-top, 0px)); }
+  .doc-wrap { padding: 8px; }
+  .tabbar { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; background: var(--char); color: var(--char-muted); border-top: 1px solid var(--char-line);
+    padding: .25rem max(.35rem, env(safe-area-inset-right, 0px)) calc(.3rem + env(safe-area-inset-bottom, 0px)) max(.35rem, env(safe-area-inset-left, 0px)); }
+  .tabbar a, .tabbar button { position: relative; display: grid; justify-items: center; gap: .1rem; padding: .4rem 0 .15rem; color: inherit; text-decoration: none; background: none; border: 0; font: inherit; font-size: .6875rem; font-weight: 500; line-height: 1.4; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .tabbar .ic { width: 1.5rem; height: 1.5rem; }
+  .tabbar [aria-current="page"] { color: var(--gold); }
+  .tabbar .tab-mic { padding-top: 0; color: var(--gold); }
+  .tabbar .tab-mic .mic-dot { width: 3.5rem; height: 3.5rem; margin-top: -1.55rem; border: 4px solid var(--char); box-shadow: 0 6px 16px rgb(0 0 0 / .35); }
+  .tabbar .tab-mic .ic { width: 1.6rem; height: 1.6rem; }
+  .tabbar .dot { position: absolute; top: .15rem; inset-inline-start: calc(50% + .4rem); min-width: 1.1rem; height: 1.1rem; padding: 0 .25rem; border-radius: 99px; background: var(--gold); color: var(--on-gold); font-size: .625rem; font-weight: 700; font-style: normal; display: grid; place-items: center; }
 }
 .login { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: var(--char); color: var(--char-ink);
   padding: max(24px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
@@ -261,6 +398,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
     <div class="rail-foot" id="rail-foot"></div>
   </aside>
   <main class="main"><div class="wrap" id="view"><div class="loading"><div class="skel" style="width:40%"></div><div class="skel"></div><div class="skel" style="width:70%"></div></div></div></main>
+  <nav class="tabbar" id="tabbar" aria-label="التنقل السريع"></nav>
 </div>
 <div id="modal-root"></div>
 <div id="toast-root"></div>
@@ -527,6 +665,277 @@ function parsePunchRows(rows, preferOrder) {
   }
   return { punches, order, bad };
 }
+
+/* ---------- voice tasks: read a spoken or typed Arabic sentence into task fields ---------- */
+/* Arabic letters are normalised so أ/إ/آ/ا, ة/ه and ى/ي match each other. */
+const normAr = (v) => String(v == null ? '' : v).toLowerCase().replace(/[ً-ٰٟـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
+const latinDigits = (s) => String(s == null ? '' : s).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+/* Drop the attached particles و ل ب ال لل so «لسامر», «والنور», «للخضار» match the bare name (both sides are stemmed the same way). */
+function stemAr(t) { let s = String(t || ''); for (let k = 0; k < 4; k++) { const m = /^(?:ال|لل|و|ل|ب)/.exec(s); if (!m || s.length - m[0].length < 3) break; s = s.slice(m[0].length); } return s; }
+/* WhatsApp wants the number in international form without +: 0797… and 797… are Jordanian mobiles. */
+function waNumber(p) {
+  let d = latinDigits(p).replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('0')) d = '962' + d.slice(1); else if (d.length === 9 && d[0] === '7') d = '962' + d;
+  return d.length >= 10 && d.length <= 15 ? d : '';
+}
+const AR_NUM = {
+  u: { واحد: 1, واحده: 1, وحده: 1, اثنين: 2, اثنان: 2, اثنتين: 2, اتنين: 2, تنين: 2, ثنتين: 2, تنتين: 2, ثلاثه: 3, ثلاث: 3, تلاته: 3, تلات: 3, اربعه: 4, اربع: 4, خمسه: 5, خمس: 5, سته: 6, ست: 6, سبعه: 7, سبع: 7, ثمانيه: 8, ثماني: 8, ثمان: 8, تمانيه: 8, تمانه: 8, تمن: 8, تسعه: 9, تسع: 9 },
+  first: { احد: 1, احدي: 1, اثنا: 2, اثني: 2 }, // only in «أحد عشر», «اثنا عشر»
+  ten: { عشره: 10, عشر: 10 },
+  teen: { احدعشر: 11, احدعش: 11, حداشر: 11, حدعش: 11, حداعش: 11, اثنعشر: 12, اثناعشر: 12, اثنعش: 12, اطنعش: 12, طنعش: 12, اتنعش: 12, ثلاثطعش: 13, ثلطعش: 13, تلطعش: 13, تلاتطعش: 13, اربعطعش: 14, اربعتعش: 14, خمسطعش: 15, خمستعش: 15, ستطعش: 16, سطعش: 16, سبعطعش: 17, سبعتعش: 17, ثمنطعش: 18, تمنطعش: 18, ثمانطعش: 18, تسعطعش: 19, تسعتعش: 19 },
+  tens: { عشرين: 20, عشرون: 20, ثلاثين: 30, ثلاثون: 30, تلاتين: 30, اربعين: 40, اربعون: 40, خمسين: 50, خمسون: 50, ستين: 60, ستون: 60, سبعين: 70, سبعون: 70, ثمانين: 80, ثمانون: 80, تمانين: 80, تسعين: 90, تسعون: 90 },
+};
+/* A number written in digits or Arabic words starting at token i: {v: value, n: tokens used}, or null. */
+function arNumAt(n, i) {
+  const A = AR_NUM, un = (t) => (t && t.length > 3 && t[0] === 'و' ? t.slice(1) : t);
+  const t = n[i];
+  if (!t) return null;
+  if (/^\d+$/.test(t)) return { v: Number(t), n: 1 };
+  if (t === 'الفين' || t === 'الفان') { // «ألفين وأربعة وعشرين»
+    let k = i + 1;
+    if (n[k] === 'و') k++;
+    const rest = n[k] ? arNumAt([un(n[k])].concat(n.slice(k + 1)), 0) : null;
+    return rest && rest.v < 100 ? { v: 2000 + rest.v, n: k - i + rest.n } : { v: 2000, n: 1 };
+  }
+  if (A.teen[t]) return { v: A.teen[t], n: 1 };
+  if (A.tens[t]) return { v: A.tens[t], n: 1 };
+  const u = A.u[t] || A.first[t];
+  if (u) {
+    const nx = n[i + 1], nx2 = n[i + 2];
+    if (A.ten[nx]) return { v: 10 + u, n: 2 };                                              // «خمسة عشر»
+    if (!A.u[t]) return null;
+    if (nx && nx !== un(nx) && A.tens[un(nx)]) return { v: A.tens[un(nx)] + u, n: 2 };       // «خمسة وعشرين»
+    if (nx === 'و' && A.tens[nx2]) return { v: A.tens[nx2] + u, n: 3 };
+    return { v: u, n: 1 };
+  }
+  if (A.ten[t]) return { v: 10, n: 1 };
+  return null;
+}
+const AR_MONTH = { يناير: 1, فبراير: 2, شباط: 2, مارس: 3, اذار: 3, ابريل: 4, نيسان: 4, مايو: 5, ايار: 5, يونيو: 6, يونيه: 6, حزيران: 6, يوليو: 7, يوليه: 7, تموز: 7, اغسطس: 8, اب: 8, سبتمبر: 9, ايلول: 9, اكتوبر: 10, نوفمبر: 11, ديسمبر: 12 };
+const AR_WEEKDAY = { احد: 0, اثنين: 1, اتنين: 1, تنين: 1, ثلاثاء: 2, ثلاثا: 2, تلاتاء: 2, تلاتا: 2, ثلثاء: 2, اربعاء: 3, اربعا: 3, خميس: 4, جمعه: 5, سبت: 6 };
+const AR_PERIOD = { صبح: 'am', صباح: 'am', صباحا: 'am', ظهر: 'noon', ظهرا: 'noon', عصر: 'pm', عصرا: 'pm', مغرب: 'pm', مسا: 'pm', مساء: 'pm', ليل: 'pm', عشا: 'pm', عشاء: 'pm' };
+/* Words of the trade that must never pick a client by themselves (a client called «… الضمان» is chosen by hand). */
+const VOICE_STOP = new Set('اقرار اقرارات ضريبه ضريبي ضرائب دخل مبيعات ضمان اجتماعي رواتب راتب اقتطاع اقتطاعات تدقيق مراجعه قوائم ماليه مالي ميزانيه حسابات حساب فواتير فاتوره قيود دفاتر معامله معاملات ملف ملفات سنه سنوات سنوي سنتين عام شهر شهري شهرين اشهر يوم اسبوع تسليم تقديم تجهيز اعداد تعديل متابعه مطلوب عميل زبون مهمه مسؤول مسئول موظف ساعه موعد تاريخ دائره مديريه شركه مؤسسه محل محلات عن من في علي الي مع هذا هذه كل جديد جديده ضريبيه محاسبيه محاسبه محاسب خدمات استشاره استشارات صناعه صناعات صناعيه تجاره تجاريه زراعه زراعيه خضار فواكه مواد عامه دوليه اردن اردنيه عمان اول اولي ثاني ثانيه وزاره رخصه سجل'.split(' '));
+/* parseTaskSpeech('إقرار الدخل لشركة النور عن 2023 و2024، المسؤول سامر، يوم الأحد الساعة عشرة، مستعجل', {today, employees, clients})
+   → {title, employee_id, client_id, clientAlt[], due, dueSaid, time, years[], priority, category, recur}.
+   Nothing here is final: the task form shows every field for correction before saving. */
+function parseTaskSpeech(text, ctx) {
+  const today = ctx.today, emps = (ctx.employees || []).filter((e) => e.active !== false), clients = ctx.clients || [];
+  const orig = String(text || '').split(/\s+/).filter(Boolean);
+  const n = orig.map((t) => normAr(latinDigits(t)).replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''));
+  const st = n.map(stemAr), used = n.map(() => '');
+  const take = (i, k, role) => { for (let j = i; j < i + k && j < n.length; j++) if (j >= 0) used[j] = role; };
+  const free = (i) => i >= 0 && i < n.length && !used[i] && n[i] !== '';
+  const joinBefore = (i, role) => { if (free(i - 1) && /^(و|في)$/.test(n[i - 1])) used[i - 1] = role; };
+  const out = { title: '', employee_id: '', client_id: '', clientAlt: [], due: today, dueSaid: false, time: '', years: [], priority: 'normal', category: '', recur: 'none' };
+
+  /* time: «الساعة عشرة ونص», «10:30», «3 العصر» */
+  const periodAt = (i) => (n[i] === 'بعد' && st[i + 1] === 'ظهر' ? { p: 'pm', n: 2 } : AR_PERIOD[st[i]] ? { p: AR_PERIOD[st[i]], n: 1 } : null);
+  for (let i = 0; i < n.length && !out.time; i++) {
+    if (!free(i)) continue;
+    const cue = /^(و|ل|ع|عل)?(ال)?ساعه$/.test(n[i]);
+    let j = cue ? i + 1 : i, h = null, mi = 0;
+    const hm = /^(\d{1,2}):(\d{2})$/.exec(n[j] || '');
+    if (hm) { h = +hm[1]; mi = +hm[2]; j++; }
+    else { const num = arNumAt(n, j); if (num && num.v >= 1 && num.v <= 23 && (cue || periodAt(j + num.n))) { h = num.v; j += num.n; } }
+    if (h == null) continue;
+    if (/^(و|وال)(نص|نصف)$/.test(n[j])) { mi = 30; j++; } else if (/^و(ال)?ربع$/.test(n[j])) { mi = 15; j++; } else if (/^و(ال)?ثلث$/.test(n[j])) { mi = 20; j++; }
+    else if (n[j] === 'الا' && /^(ربع|ثلث)$/.test(n[j + 1])) { mi = n[j + 1] === 'ربع' ? -15 : -20; j += 2; }
+    const per = periodAt(j);
+    if (per) j += per.n;
+    if (per && per.p === 'pm' && h < 12) h += 12; else if (per && per.p === 'noon' && h < 5) h += 12; else if (per && per.p === 'am' && h === 12) h = 0;
+    else if (!per && !hm && h >= 1 && h <= 7) h += 12; // office hours: «الساعة 2» is the afternoon
+    let total = h * 60 + mi;
+    if (total < 0 || total >= 1440) continue;
+    out.time = pad(Math.floor(total / 60)) + ':' + pad(total % 60);
+    take(i, j - i, 't'); joinBefore(i, 't');
+  }
+
+  /* date */
+  const ymd = (y, m, d) => { const s = y + '-' + pad(m) + '-' + pad(d); return m >= 1 && m <= 12 && d >= 1 && dateObj(s).getUTCDate() === d ? s : null; };
+  const near = (m, d) => { const y = +today.slice(0, 4), s = ymd(y, m, d); return s && s < addDays(today, -45) ? ymd(y + 1, m, d) : s; }; // no year said: the coming one
+  const monthAt = (i) => {
+    if (n[i] === 'تشرين' || n[i] === 'كانون') {
+      const q = st[i + 1], first = /^(اول|اولي)$/.test(q), second = /^(ثاني|تاني|ثانيه)$/.test(q);
+      if (n[i] === 'تشرين') return first ? { m: 10, n: 2 } : second ? { m: 11, n: 2 } : { m: +today.slice(5, 7) <= 10 ? 10 : 11, n: 1 };
+      return first ? { m: 12, n: 2 } : second ? { m: 1, n: 2 } : { m: +today.slice(5, 7) === 1 ? 1 : 12, n: 1 };
+    }
+    if (/^(ل|ب)?شهر$/.test(n[i])) { const num = arNumAt(n, i + 1); return num && num.v >= 1 && num.v <= 12 ? { m: num.v, n: 1 + num.n } : null; }
+    const m = AR_MONTH[n[i]] || (n[i] !== st[i] && AR_MONTH[st[i]]);
+    return m ? { m, n: 1 } : null;
+  };
+  const NEXT = /^(ال)?(جاي|جايه|قادم|قادمه|مقبل|مقبله)$/;
+  const DCUE = /^(و)?(يوم|بيوم|بتاريخ|تاريخ|التاريخ|موعد|الموعد|موعدها|لغايه)$/;
+  const PERIODW = /^(و|ل|ب)?(شهر|شهري|شهرين|اشهر|فتره|الفتره|دوره|الدوره|فترات)$/;
+  for (let i = 0; i < n.length && !out.dueSaid; i++) {
+    if (!free(i)) continue;
+    const t = n[i], nx = n[i + 1] || '';
+    let d = null, len = 0, m;
+    if ((m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/.exec(t))) { d = ymd(m[3].length === 2 ? 2000 + +m[3] : +m[3], +m[2], +m[1]); len = 1; }
+    else if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t))) { d = ymd(+m[1], +m[2], +m[3]); len = 1; }
+    else if ((m = /^(\d{1,2})([\/\-.])(\d{1,2})$/.exec(t)) && !PERIODW.test(n[i - 1] || '') && (m[2] === '/' || DCUE.test(n[i - 1] || ''))) { d = near(+m[3], +m[1]); len = 1; } // «9-10» alone is a tax period, not a date
+    else if (t === 'اليوم' || t === 'واليوم') { d = today; len = 1; }
+    else if (/^(و|ل)?(بكره|بكرا|غدا|غد|الغد)$/.test(t)) { d = addDays(today, 1); len = 1; }
+    else if (t === 'بعد' || t === 'وبعد') {
+      if (/^(بكره|بكرا|غدا|غد|الغد)$/.test(nx)) { d = addDays(today, 2); len = 2; }
+      else if (nx === 'يومين') { d = addDays(today, 2); len = 2; }
+      else if (nx === 'اسبوعين') { d = addDays(today, 14); len = 2; }
+      else if (nx === 'شهرين') { d = addMonthsDate(today, 2); len = 2; }
+      else if (nx === 'اسبوع') { d = addDays(today, 7); len = 2; }
+      else if (nx === 'شهر') { d = addMonthsDate(today, 1); len = 2; }
+      else { const num = arNumAt(n, i + 1), unit = num ? n[i + 1 + num.n] || '' : '';
+        if (num && /^(يوم|ايام)$/.test(unit)) { d = addDays(today, num.v); len = 2 + num.n; }
+        else if (num && /^(اسبوع|اسابيع)$/.test(unit)) { d = addDays(today, 7 * num.v); len = 2 + num.n; }
+        else if (num && /^(شهر|اشهر|شهور)$/.test(unit)) { d = addMonthsDate(today, num.v); len = 2 + num.n; } }
+    }
+    else if (st[i] === 'اسبوع' && t !== 'اسبوع' && NEXT.test(nx)) { d = addDays(today, 7); len = 2; }
+    else if (t === 'الشهر' && NEXT.test(nx)) { d = addMonthsDate(today, 1); len = 2; }
+    else if (/^(اخر|نهايه|اواخر)$/.test(t) && /^(ال|هال)?شهر$/.test(nx)) { d = monthDays(today.slice(0, 7)).pop(); len = 2; }
+    else if (t === 'اول' && nx === 'الشهر') { d = shiftMonth(today.slice(0, 7), 1) + '-01'; len = 2; }
+    else if (AR_WEEKDAY[st[i]] != null && (t !== st[i] || n[i - 1] === 'يوم')) {
+      d = addDays(today, 1); while (dow(d) !== AR_WEEKDAY[st[i]]) d = addDays(d, 1);
+      len = NEXT.test(nx) ? 2 : 1;
+    }
+    else {
+      const num = arNumAt(n, i);
+      if (num && num.v >= 1 && num.v <= 31) {
+        let k = i + num.n;
+        if (n[k] === 'من') k++;
+        if (/^(ال|بال|هال)شهر$/.test(n[k] || '')) { // «15 الشهر», «15 الشهر الجاي»
+          const nextM = NEXT.test(n[k + 1] || ''); let ym = today.slice(0, 7);
+          if (nextM || ymd(+ym.slice(0, 4), +ym.slice(5), num.v) < today) ym = shiftMonth(ym, 1);
+          d = ymd(+ym.slice(0, 4), +ym.slice(5), num.v); len = k - i + (nextM ? 2 : 1);
+        } else {
+          const mo = monthAt(k);
+          if (mo) { const y = /^(19|20)\d\d$/.test(n[k + mo.n] || '') ? +n[k + mo.n] : 0; d = y ? ymd(y, mo.m, num.v) : near(mo.m, num.v); len = k - i + mo.n + (y ? 1 : 0); }
+        }
+      }
+    }
+    if (!d) continue;
+    out.due = d; out.dueSaid = true;
+    let a = i;
+    if (free(a - 1) && DCUE.test(n[a - 1])) a--;
+    if (free(a - 2) && /^(و)?(ال)?(موعد|تاريخ)$/.test(n[a - 2]) && /^(التسليم|الاستحقاق|الانجاز|التقديم)$/.test(n[a - 1])) a -= 2;
+    take(a, i - a + len, 'd'); joinBefore(a, 'd');
+  }
+
+  /* years asked for: every 20xx / 19xx that is not part of the date; «من 2021 إلى 2024» fills the range */
+  let lastY = -9;
+  const addYear = (y, i, k) => { if (y >= 1990 && y <= 2099) { out.years.push(y); take(i, k, 'y'); lastY = i + k - 1; } };
+  for (let i = 0; i < n.length; i++) {
+    if (!free(i)) continue;
+    let m;
+    if ((m = /^((?:19|20)\d\d)[\-–\/]((?:19|20)\d\d)$/.exec(n[i]))) { for (let y = +m[1]; y <= +m[2] && y < +m[1] + 20; y++) out.years.push(y); take(i, 1, 'y'); lastY = i; continue; }
+    if ((m = /^([ول]|لل|ال)?((?:19|20)\d\d)$/.exec(n[i]))) {
+      const prevY = out.years[out.years.length - 1], gap = i - lastY, mid = n[lastY + 1], link = /^(الي|ل|لل|لغايه|حتي|لحد)$/;
+      const range = (gap === 1 && (m[1] === 'ل' || m[1] === 'لل')) || (gap === 2 && (link.test(mid) || (mid === '' && /^[-–]$/.test(orig[lastY + 1]))));
+      if (range && prevY && +m[2] > prevY && +m[2] - prevY < 20) { for (let y = prevY + 1; y < +m[2]; y++) out.years.push(y); if (gap === 2) used[lastY + 1] = 'y'; }
+      addYear(+m[2], i, 1);
+      continue;
+    }
+    if (/^و?(الفين|الفان)$/.test(n[i])) { const num = arNumAt(['الفين'].concat(n.slice(i + 1)), 0); addYear(num.v, i, num.n); }
+  }
+  out.years = [...new Set(out.years)].sort((a, b) => a - b);
+
+  /* priority and repetition */
+  for (let i = 0; i < n.length; i++) {
+    if (!free(i)) continue;
+    if (/^(مستعجل|مستعجله|عاجل|عاجله|ضروري|ضروريه|فوري|فوريه|فورا|طارئ|طارئه)$/.test(st[i])) { out.priority = 'urgent'; take(i, 1, 'p'); if (free(i + 1) && n[i + 1] === 'جدا') used[i + 1] = 'p'; }
+    else if (st[i] === 'مهم' || (n[i] === 'مهمه' && n[i + 1] === 'جدا') || (st[i] === 'اولويه' && /^(عاليه|مهمه)$/.test(n[i + 1] || ''))) { if (out.priority === 'normal') out.priority = 'high'; take(i, st[i] === 'مهم' && n[i + 1] !== 'جدا' ? 1 : 2, 'p'); }
+    else if (/^(شهريا|سنويا)$/.test(st[i])) { out.recur = st[i] === 'شهريا' ? 'monthly' : 'yearly'; take(i, 1, 'r'); }
+    else if (n[i] === 'ربع' && /^سنوي/.test(n[i + 1] || '')) { out.recur = 'quarterly'; take(i, 2, 'r'); }
+    else if (n[i] === 'كل' || n[i] === 'وكل') {
+      const a = n[i + 1] || '', num = arNumAt(n, i + 1);
+      if (a === 'شهر') { out.recur = 'monthly'; take(i, 2, 'r'); }
+      else if (a === 'شهرين') { out.recur = 'bimonthly'; take(i, 2, 'r'); }
+      else if (/^(سنه|عام)$/.test(a)) { out.recur = 'yearly'; take(i, 2, 'r'); }
+      else if (num && /^(اشهر|شهور|شهر)$/.test(n[i + 1 + num.n] || '') && (num.v === 2 || num.v === 3)) { out.recur = num.v === 2 ? 'bimonthly' : 'quarterly'; take(i, 2 + num.n, 'r'); }
+    }
+  }
+
+  /* words of the clients' names, weighted so that rare words (a family name) count and «شركة», «للتجارة» barely do */
+  const N = clients.length, df = {};
+  const C = clients.map((c) => ({ id: c.id, tk: [...new Set(normAr(c.name).split(/[^\p{L}\p{N}]+/u).map(stemAr).filter((w) => w.length >= 2 && !VOICE_STOP.has(w) && !/^\d+$/.test(w)))] }));
+  C.forEach((c) => c.tk.forEach((w) => (df[w] = (df[w] || 0) + 1)));
+  const wt = (w) => Math.log((N + 1) / ((df[w] || 0) + 0.5)), rare = (w) => wt(w) >= 0.65 * Math.log((N + 1) / 1.5);
+  const said0 = new Set(st.filter((w, i) => free(i)));
+
+  /* employee said outright: «المسؤول سامر», first name with more of the name, or a family name nobody else has */
+  const allE = (ctx.employees || []).map((e) => { const tk = normAr(e.name).split(' ').filter(Boolean).map(stemAr); return { id: e.id, on: e.active !== false, first: tk[0] || '', last: tk[tk.length - 1] || '', set: new Set(tk) }; });
+  const E = allE.filter((x) => x.on);
+  const firsts = new Set(E.map((x) => x.first));
+  /* a family name counts on its own unless something else of a client who carries it was said too («أبو حمدان» the employee, «نصر أبو حمدان» the client) */
+  E.forEach((x) => { x.fam = x.set.size > 1 && x.last.length >= 4 && allE.every((y) => y === x || !y.set.has(x.last)) && !C.some((c) => c.tk.includes(x.last) && c.tk.some((w) => w !== x.last && !/^(ابو|عبد|بن|ام)$/.test(w) && said0.has(w) && rare(w))) ? x.last : ''; });
+  const ECUE = /^(و)?(ال)?(مسؤول|مسئول|مسؤوله|مسئوله|مسؤوليه|مسئوليه|موظف|موظفه|محاسب|محاسبه|مكلف|مكلفه)$/, EVERB = /^(و)?(كلف|كلفي|بلغ|بلغي|خبر|خبري|خلي|يستلمها|تستلمها|يعملها|تعملها|يتابعها|تتابعها|يجهزها|تجهزها)$/;
+  const NEARW = /^(علي|عند|مع|الي)$/, CLIENTW = /^(شركه|مؤسسه|محلات|محل|مصنع|مطعم|عميل|زبون)$/;
+  const runLen = (x, i) => { let k = 1; while (free(i + k) && x.set.has(st[i + k])) k++; return k; };
+  const byFirst = (i) => E.filter((y) => y.first === st[i]).sort((a, b) => runLen(b, i) - runLen(a, i))[0]; // two with one first name: the fuller match
+  const cueAt = (i) => { let b = i - 1; while (b >= 0 && i - b <= 3 && (n[b] === '' || /^(عنها|عنه|عن|هو|هي|المهمه|فيها)$/.test(n[b]))) b--; return free(b) && (ECUE.test(n[b]) || EVERB.test(n[b])) ? b : -1; };
+  const claim = (x, i, k) => { // tokens i … i+k-1 are the name; the cue in front of it goes with it
+    let a = i;
+    if (free(a - 1) && n[a - 1] === 'ابو' && x.set.has('ابو')) a--;
+    const c = cueAt(a);
+    if (c >= 0) a = c; else if (free(a - 1) && NEARW.test(n[a - 1])) a--;
+    out.employee_id = x.id; take(a, i + k - a, 'e'); joinBefore(a, 'e');
+  };
+  for (let pass = 0; pass < 2 && !out.employee_id; pass++) {
+    for (let i = 0; i < n.length && !out.employee_id; i++) {
+      if (!free(i) || CLIENTW.test(st[i - 1] || '')) continue;
+      const x = byFirst(i), k = x ? runLen(x, i) : 0;
+      if (x && (pass === 0 ? cueAt(i) >= 0 : k >= 2)) { claim(x, i, k); break; }
+      const z = E.find((y) => y.fam && y.fam === st[i]); // «المسؤول أبو حمدان», «العمري يجهز …»
+      if (z && (pass === 1 || cueAt(n[i - 1] === 'ابو' ? i - 1 : i) >= 0)) claim(z, i, 1);
+    }
+  }
+
+  /* client: the name whose rarer words are in the sentence; near ties are offered instead of guessed */
+  const said = new Set(); n.forEach((t, i) => { if (free(i) && st[i].length >= 2 && !VOICE_STOP.has(st[i]) && !/\d/.test(t)) said.add(st[i]); });
+  const cands = [];
+  for (const c of C) {
+    const hit = c.tk.filter((w) => said.has(w));
+    if (!hit.some((w) => rare(w) && !firsts.has(w))) continue;
+    const got = hit.reduce((s, w) => s + wt(w), 0), all = c.tk.reduce((s, w) => s + wt(w), 0);
+    cands.push({ id: c.id, hit, score: got + got / all });
+  }
+  cands.sort((a, b) => b.score - a.score);
+  if (cands.length) {
+    const top = cands[0], clear = cands.length === 1 || top.score >= cands[1].score * 1.2;
+    const shown = clear ? [top] : cands.filter((c) => c.score >= top.score * 0.6).slice(0, 4);
+    if (clear) out.client_id = top.id;
+    out.clientAlt = (clear ? cands.filter((c) => c.score >= top.score * 0.5) : shown).slice(0, 4).map((c) => c.id);
+    const words = new Set(shown.flatMap((c) => c.hit));
+    n.forEach((t, i) => { if (free(i) && words.has(st[i])) used[i] = 'c'; });
+  }
+
+  /* employee by first name alone, outside the client's name: «لسامر» or «على سامر» beats a bare «سامر» */
+  if (!out.employee_id) {
+    let best = null;
+    for (let i = 0; i < n.length; i++) {
+      if (!free(i) || CLIENTW.test(st[i - 1] || '')) continue;
+      const x = byFirst(i);
+      if (!x) continue;
+      const lead = used.slice(0, i).every((u, j) => u || n[j] === '' || /^(مهمه|جديده)$/.test(n[j]));
+      const score = (n[i] !== st[i] && /^(ل|لل)/.test(n[i])) || NEARW.test(n[i - 1] || '') ? 3 : lead ? 2 : 1;
+      if (!best || score > best.score) best = { x, i, score };
+    }
+    if (best) claim(best.x, best.i, runLen(best.x, best.i));
+  }
+
+  /* category from the words of the trade */
+  const has = (...w) => w.some((x) => st.includes(x) || n.includes(x));
+  out.category = has('دخل') ? 'إقرار ضريبة الدخل' : has('مبيعات') ? 'إقرار ضريبة المبيعات' : has('اقتطاع', 'اقتطاعات', 'رواتب') ? 'اقتطاعات الرواتب' : has('ضمان') ? 'الضمان الاجتماعي'
+    : has('قيود', 'قيد', 'دفاتر', 'فواتير') ? 'مسك الدفاتر والقيود' : has('قوائم', 'ميزانيه') ? 'القوائم المالية' : has('تدقيق') ? 'تدقيق' : has('استشاره') ? 'استشارة'
+    : has('معامله', 'دائره', 'وزاره', 'امانه', 'رخصه', 'ترخيص', 'براءه') ? 'معاملة حكومية' : '';
+
+  /* title: what was said, without the parts that became fields of their own (who, when, how urgent) */
+  const gone = (i) => 'tdpre'.includes(used[i]) && used[i] !== '';
+  let a = 0, b = n.length - 1;
+  while (a <= b && (gone(a) || n[a] === '' || /^(مهمه|جديده|سجل|سجلي|ضيف|ضيفي|اضف|بدي|مطلوب|المطلوب)$/.test(n[a]))) a++;
+  while (b >= a && (gone(b) || n[b] === '' || /^(و|في|يوم|علي|الي|ل|عن|مع|من|ب)$/.test(n[b]))) b--;
+  out.title = orig.slice(a, b + 1).filter((w, k) => !gone(a + k)).join(' ').replace(/^[\s،,:;.\-]+|[\s،,:;\-]+$/g, '');
+  return out;
+}
 /*PURE-END*/
 </script>
 
@@ -534,7 +943,7 @@ function parsePunchRows(rows, preferOrder) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.11.12';
+  const APP_VERSION = '2026.11.14';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -586,6 +995,7 @@ function parsePunchRows(rows, preferOrder) {
     route: 'home', attTab: 'day', attDate: today0, attMonth: today0.slice(0, 7), attEmp: '', leaveStatus: '', leaveEmp: '', leaveYear: today0.slice(0, 4),
     payMonth: today0.slice(0, 7), taskStatus: 'open', taskEmp: '', taskClient: '', taskQ: '', clientQ: '', clientEmp: '', clientCycle: '', clientKind: '', empShowInactive: false,
     imp: null, impOrder: 'dmy', impMap: {}, impBusy: false, impProgress: '',
+    openK: {}, // folded cards the person opened or closed, by key
   };
   const ctx = () => ({ settings: S.settings, days: S.days, leaves: S.leaves });
   const activeEmps = () => S.employees.filter((e) => e.active !== false);
@@ -594,8 +1004,7 @@ function parsePunchRows(rows, preferOrder) {
   const empName = (id) => (empById(id) || {}).name || '—';
   const clientName = (id) => (clientById(id) || {}).name || '—';
   /* Searchable client picker: a hidden input carries the client id (attrs give it name= or id=/data-ch=), the visible box searches by
-     name, tax number or responsible accountant. Arabic letters are normalised so أ/إ/آ/ا, ة/ه and ى/ي match each other. */
-  const normAr = (v) => String(v == null ? '' : v).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
+     name, tax number or responsible accountant (normAr, in the pure block, makes أ/إ/آ/ا, ة/ه and ى/ي match each other). */
   function clientPicker({ attrs, qid, value, none, label }) {
     const c = value ? clientById(value) : null;
     return '<div class="field cpick-field"><span>' + esc(label || 'العميل') + '</span><div class="cpick' + (value ? ' has-v' : '') + '" data-none="' + esc(none) + '">' +
@@ -750,7 +1159,11 @@ function parsePunchRows(rows, preferOrder) {
     const overdue = S.tasks.filter((x) => x.status !== 'done' && x.due && x.due < t).length;
     const badge = { leaves: pend, tasks: overdue };
     document.getElementById('nav').innerHTML = Object.entries(ROUTES).map(([k, [label]]) =>
-      '<a href="#' + k + '"' + (UI.route === k ? ' aria-current="page"' : '') + '><span>' + label + '</span>' + (badge[k] ? '<span class="badge num">' + badge[k] + '</span>' : '') + '</a>').join('');
+      '<a href="#' + k + '"' + (UI.route === k ? ' aria-current="page"' : '') + '><span class="nav-l">' + ic(k) + label + '</span>' + (badge[k] ? '<span class="badge num">' + badge[k] + '</span>' : '') + '</a>').join('');
+    const tab = (k, label) => '<a href="#' + k + '"' + (UI.route === k ? ' aria-current="page"' : '') + '>' + ic(k) + '<span>' + label + '</span>' + (badge[k] ? '<i class="dot num">' + badge[k] + '</i>' : '') + '</a>';
+    document.getElementById('tabbar').innerHTML = tab('home', 'الرئيسية') + tab('attendance', 'الحضور') +
+      '<button type="button" class="tab-mic" data-act="task-voice" aria-label="مهمة صوتية"><span class="mic-dot">' + ic('mic') + '</span><span>مهمة صوتية</span></button>' + tab('tasks', 'المهام') +
+      '<button type="button" data-act="more"' + (MORE.includes(UI.route) ? ' aria-current="page"' : '') + '>' + ic('more') + '<span>المزيد</span>' + (pend ? '<i class="dot num">' + pend + '</i>' : '') + '</button>';
     const s = S.settings.schedule;
     const full = WEEK.filter((d) => s[d].on && s[d].end === s[6].end && s[d].start === s[6].start);
     const other = WEEK.filter((d) => s[d].on && !full.includes(d));
@@ -786,11 +1199,64 @@ function parsePunchRows(rows, preferOrder) {
   const seg = (act, cur, items) => '<div class="seg" role="group">' + items.map(([k, l]) => '<button type="button" data-act="' + act + '" data-v="' + k + '" aria-pressed="' + (k === cur) + '">' + l + '</button>').join('') + '</div>';
   const noEmps = () => empty('لا يوجد موظفون بعد', 'أضف موظفي الشركة أولاً من صفحة الموظفين.', '<a class="btn btn-primary" href="#employees">صفحة الموظفين</a>');
 
+  /* ---------- phone layout (≤ 860px): icon tab bar, and tap-to-open cards where the desktop has tables ---------- */
+  const PHONE = window.matchMedia('(max-width: 860px)');
+  const isPhone = () => PHONE.matches;
+  const ICON = { // keyed like ROUTES, plus a few actions; 24×24, drawn with the text colour
+    home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/>',
+    attendance: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    leaves: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    payroll: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v5M17.5 9.5v5"/>',
+    tasks: '<path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.3 1.3 2.5-2.5M3.5 12l1.3 1.3 2.5-2.5M3.5 18l1.3 1.3 2.5-2.5"/>',
+    clients: '<rect x="3" y="7.5" width="18" height="12" rx="2.5"/><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5M3 13h18"/>',
+    employees: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3 19.5c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16.5 14.6c2.4.2 4 1.8 4.5 4.4"/>',
+    config: '<path d="M4 7h8M16 7h4M4 12h2M10 12h10M4 17h10M18 17h2"/><circle cx="14" cy="7" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="17" r="2"/>',
+    more: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7"/>',
+    wa: '<path d="M4 20l1.3-4.2A8 8 0 1 1 8.3 18.8z"/><path d="M9.3 9.1c.1 3 2.6 5.5 5.6 5.6l1.1-1.3-1.8-1.1-.8.6c-.9-.4-1.6-1.1-2-2l.6-.8-1.1-1.8z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    chev: '<path d="m6 9 6 6 6-6"/>',
+    fwd: '<path d="m14.5 6-6 6 6 6"/>', // points left: forward in a right-to-left page
+    back: '<path d="m9.5 6 6 6-6 6"/>',
+  };
+  const ic = (k, cls) => '<svg class="ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + ICON[k] + '</svg>';
+  const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
+  /* «محمد خليل محمد أبو حمدان» → «محمد أبو حمدان» */
+  const shortName = (name) => { const w = String(name || '').trim().split(/\s+/); if (w.length <= 2) return w.join(' '); return w[0] + ' ' + (/^(أبو|ابو|عبد|بن)$/.test(w[w.length - 2]) ? w[w.length - 2] + ' ' : '') + w[w.length - 1]; };
+  const fnum = (v) => { const n = r2(v); return (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 2 }); };
+  const stamp = (iso) => new Date(iso).toLocaleString(LOC, { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' });
+  const isOpen = (k, def) => (k in UI.openK ? UI.openK[k] : !!def);
+  /* One record as a card. o.more: tapping opens the rest (remembered under o.k). o.act: the whole card is a button. o.body: always shown. */
+  function rec(o) {
+    const lead = o.av != null ? '<span class="av">' + esc(initials(o.av)) + '</span>' : o.icon ? '<span class="rec-i">' + ic(o.icon) + '</span>' : '';
+    const headIn = lead + '<div class="rec-t"><b>' + o.title + '</b>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + (o.chips ? '<div class="rec-c">' + o.chips + '</div>' : '') + '</div>' + (o.end ? '<div class="rec-e">' + o.end + '</div>' : '');
+    const cls = 'rec' + (o.tone ? ' is-' + o.tone : '');
+    if (o.more != null) return '<details class="' + cls + '" data-k="' + esc(o.k) + '"' + (isOpen(o.k, o.open) ? ' open' : '') + '><summary class="rec-h">' + headIn + ic('chev', 'rec-v') + '</summary><div class="rec-b">' + o.more + '</div></details>';
+    if (o.act) return '<div class="' + cls + ' rec-h" role="button" tabindex="0" ' + o.act + '>' + headIn + ic('fwd', 'rec-v') + '</div>';
+    return '<div class="' + cls + '"><div class="rec-h">' + headIn + '</div>' + (o.body ? '<div class="rec-b">' + o.body + '</div>' : '') + '</div>';
+  }
+  const recs = (list) => '<div class="recs">' + list.join('') + '</div>';
+  const stats = (items, cls) => '<div class="stats' + (cls ? ' ' + cls : '') + '">' + items.filter(Boolean).map(([l, v, tone]) => '<div' + (tone ? ' class="is-' + tone + '"' : '') + '><span>' + l + '</span><b class="num">' + v + '</b></div>').join('') + '</div>';
+  const kv = (rows) => { rows = rows.filter(Boolean); return rows.length ? '<dl class="kv">' + rows.map(([k, v]) => '<dt>' + k + '</dt><dd>' + v + '</dd>').join('') + '</dl>' : ''; };
+  /* A card that folds (its heading is the button), and a small fold for filters. */
+  const sect = (k, title, body, o) => '<details class="card sect" data-k="' + esc(k) + '"' + (isOpen(k, o && o.open) ? ' open' : '') + '><summary class="card-h"><h2>' + title + '</h2>' + ((o && o.end) || '') + ic('chev', 'rec-v') + '</summary><div class="card-b"' + (o && o.flush ? ' style="padding:.6rem"' : '') + '>' + body + '</div></details>';
+  const fold = (k, label, body, open) => '<details class="fold" data-k="' + esc(k) + '"' + (isOpen(k, open) ? ' open' : '') + '><summary class="btn btn-sm">' + label + ic('chev', 'rec-v') + '</summary><div class="fold-b">' + body + '</div></details>';
+  /* Quick choice: one press sets the value (task status, priority, list filter). items: [value, label, tone] */
+  const pick = (act, attrs, cur, items) => '<div class="pick" role="group">' + items.map(([v, l, tone]) => '<button type="button"' + (tone ? ' class="' + tone + '"' : '') + ' data-act="' + act + '" ' + attrs + ' data-v="' + esc(v) + '" aria-pressed="' + (v === cur) + '">' + l + '</button>').join('') + '</div>';
+  const voiceCta = () => '<button type="button" class="voice-cta" data-act="task-voice"><span class="mic-dot">' + ic('mic') + '</span><span><b>مهمة صوتية</b><small>احكِ المهمة واسم الموظف والموعد، والنظام يرتّبها ويجهّز رسالة الواتساب</small></span></button>';
+  const empState = (e, t) => (e.active === false ? chip(['غير فعّال', '']) : e.track === false ? chip(['معفى من البصمة', 'info']) : e.field_from && (!e.field_to || e.field_to >= t) ? chip(['عمل خارجي' + (e.field_from > t ? ' من ' + dShort(e.field_from) : '') + (e.field_to ? ' حتى ' + dShort(e.field_to) : ''), 'info']) : chip(['فعّال', 'ok']));
+  const MORE = ['leaves', 'payroll', 'clients', 'employees', 'config']; // sections behind «المزيد» on the phone tab bar
+  function moreSheet() {
+    const pend = S.leaves.filter((l) => l.status === 'pending').length;
+    const info = { leaves: pend ? 'طلبات بانتظار موافقتك' : 'الأرصدة والطلبات', payroll: 'كشف ' + dMonth(todayStr().slice(0, 7)), clients: int(S.clients.length) + ' عميل', employees: int(activeEmps().length) + ' موظف', config: 'الدوام، العطل، حسابي' };
+    openModal({ title: 'المزيد', cancel: 'إغلاق', body: '<div class="app-grid">' + MORE.map((k) => '<a class="app-tile' + (k === 'leaves' && pend ? ' is-warn' : '') + '" href="#' + k + '"><span class="app-i">' + ic(k) + '</span><strong class="num">' + (k === 'leaves' && pend ? pend : '') + '</strong><b>' + ROUTES[k][0] + '</b><small>' + esc(info[k]) + '</small></a>').join('') + '</div><p class="note" style="margin:0;text-align:center">الإصدار <span class="num">' + APP_VERSION + '</span></p>' });
+  }
+
   /* ---------- HOME ---------- */
   function renderHome() {
     const t = todayStr(), now = nowMin(), c = ctx(), sc = sched(c, t), emps = activeEmps().filter((e) => e.track !== false);
     const sub = esc(F.full.format(dateObj(t))) + ' · ' + (sc.type === 'work' ? 'الدوام <span class="num">' + t12(fromMin(sc.start)) + ' – ' + t12(fromMin(sc.end)) + '</span>' : sc.type === 'holiday' ? 'عطلة رسمية: ' + esc(sc.name) : 'عطلة أسبوعية');
-    let out = head('لوحة المتابعة', sub + bridgeChip(), '<a class="btn" href="#attendance">الحضور</a><button class="btn btn-primary" data-act="task-new">مهمة جديدة</button>');
+    let out = head('لوحة المتابعة', sub + bridgeChip(), '<a class="btn" href="#attendance">الحضور</a><button class="btn" data-act="task-voice">' + ic('mic') + 'مهمة صوتية</button><button class="btn btn-primary" data-act="task-new">' + ic('plus') + 'مهمة جديدة</button>');
     if (!S.employees.length) return out + card('', noEmps());
     const rows = emps.map((e) => ({ e, r: evalDay(c, e, t, t, now) }));
     const n = (f) => rows.filter((x) => f(x.r)).length;
@@ -826,6 +1292,7 @@ function parsePunchRows(rows, preferOrder) {
     const ms = emps.map((e) => ({ e, s: monthSummary(c, e, ym, t, now) }));
     const mtd = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th class="n">أيام الحضور</th><th class="n">غياب</th><th class="n">مرات التأخير</th><th class="n">دقائق التأخير</th><th class="n">إضافي</th></tr></thead><tbody>' +
       ms.map(({ e, s }) => '<tr><td>' + esc(e.name) + '</td><td class="n">' + int(s.present) + ' / ' + int(s.work) + '</td><td class="n">' + (s.absent ? '<span class="due-bad">' + int(s.absent) + '</span>' : '0') + '</td><td class="n">' + int(s.lateCount) + '</td><td class="n">' + hm(s.lateMin) + '</td><td class="n">' + hm(s.ot + s.otOff) + '</td></tr>').join('') + '</tbody></table></div>';
+    if (isPhone()) return homeP({ t, sc, sub, rows, here, late, away, onLeave, hasData, att, ms, ym });
     out += '<div class="grid-main">' + card('حضور اليوم', board, { flush: true, note: 'اضغط على أي موظف لتعديل حركته يدوياً.' }) + card('يحتاج انتباهك', att) + '</div>';
     out += card('ملخص ' + esc(dMonth(ym)) + ' حتى اليوم', mtd, { flush: true, actions: '<a class="btn btn-sm" href="#attendance" data-act="att-tab" data-v="month">التقرير الشهري</a>' });
     return out;
@@ -843,12 +1310,12 @@ function parsePunchRows(rows, preferOrder) {
   }
   function taskLi(x, t) {
     const late = x.due < t, days = Math.round((Date.parse(x.due) - Date.parse(t)) / 864e5);
-    return '<div class="li"><div><b>' + esc(x.title) + '</b><small>' + esc(clientName(x.client_id)) + ' · ' + esc(empName(x.employee_id)) + '</small></div><div class="end"><span class="' + (late ? 'due-bad' : days <= 2 ? 'due-warn' : '') + '">' + dShort(x.due) + '</span><small>' + (late ? 'متأخرة ' + int(-days) + ' يوم' : days === 0 ? 'اليوم' : 'بعد ' + int(days) + ' يوم') + '</small></div></div>';
+    return '<div class="li" role="button" tabindex="0" data-act="task-edit" data-id="' + esc(x.id) + '"><div><b>' + esc(x.title) + '</b><small>' + esc(clientName(x.client_id)) + ' · ' + esc(empName(x.employee_id)) + '</small></div><div class="end"><span class="' + (late ? 'due-bad' : days <= 2 ? 'due-warn' : '') + '">' + dShort(x.due) + '</span><small>' + (late ? 'متأخرة ' + int(-days) + ' يوم' : days === 0 ? 'اليوم' : 'بعد ' + int(days) + ' يوم') + '</small></div></div>';
   }
 
   /* ---------- ATTENDANCE ---------- */
   function renderAttendance() {
-    let out = head('الحضور والانصراف', 'الدوام يُحسب من أول بصمة وآخر بصمة في اليوم. الإضافي يبدأ بعد نهاية الدوام الرسمي.', seg('att-tab', UI.attTab, [['day', 'يومي'], ['month', 'شهري'], ['import', 'استيراد البصمة']]));
+    let out = head('الحضور والانصراف', isPhone() ? '' : 'الدوام يُحسب من أول بصمة وآخر بصمة في اليوم. الإضافي يبدأ بعد نهاية الدوام الرسمي.', seg('att-tab', UI.attTab, [['day', 'يومي'], ['month', 'شهري'], ['import', isPhone() ? 'استيراد' : 'استيراد البصمة']]));
     if (!S.employees.length) return out + card('', noEmps());
     if (UI.attTab === 'month') return out + attMonth();
     if (UI.attTab === 'import') return out + attImport();
@@ -864,6 +1331,7 @@ function parsePunchRows(rows, preferOrder) {
     const tbl = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th>الحالة</th><th>دخول</th><th>خروج</th><th class="n">ساعات العمل</th><th class="n">تأخير</th><th class="n">خروج مبكر</th><th class="n">إضافي</th><th>ملاحظة</th><th></th></tr></thead><tbody>' +
       rows.map(({ e, r }) => '<tr><td>' + who(e, e.fp_id ? 'رقم البصمة <span class="num">' + esc(e.fp_id) + '</span>' : '<span class="due-warn">بدون رقم بصمة</span>') + '</td><td>' + chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + (r.manual ? ' <span class="chip plain">يدوي</span>' : '') + '</td><td class="num">' + t12(r.in) + '</td><td class="num">' + t12(r.out) + '</td><td class="n">' + hm(r.worked) + '</td><td class="n">' + (r.late ? '<span class="due-warn">' + hm(r.late) + '</span>' : '—') + '</td><td class="n">' + hm(r.early) + '</td><td class="n">' + (r.ot || r.otOff ? '<b>' + hm(r.ot + r.otOff) + '</b>' + (r.otOff ? ' <small class="muted">(عطلة)</small>' : '') : '—') + '</td><td class="wrap muted">' + esc(r.note) + '</td><td><button class="btn btn-sm" data-act="att-edit" data-emp="' + esc(e.id) + '" data-date="' + d + '">تعديل</button></td></tr>').join('') +
       '</tbody></table></div>';
+    if (isPhone()) return attDayP(d, sc, info, rows);
     return card(esc(F.full.format(dateObj(d))), tools + '<p class="note" style="margin-top:.6rem">' + info + '</p>') + card('', tbl, { flush: true });
   }
   function attMonth() {
@@ -876,6 +1344,7 @@ function parsePunchRows(rows, preferOrder) {
     const tbl = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th class="n">أيام عمل</th><th class="n">حضور</th><th class="n">غياب</th><th class="n">إجازة</th><th class="n">مرات التأخير</th><th class="n">التأخير</th><th class="n">خروج مبكر</th><th class="n">إضافي عادي</th><th class="n">إضافي عطلة</th><th class="n">بصمات ناقصة</th></tr></thead><tbody>' +
       sums.map(({ e, s }) => '<tr class="click' + (UI.attEmp === e.id ? ' sel' : '') + '" data-act="att-emp" data-v="' + esc(e.id) + '"><td>' + esc(e.name) + '</td><td class="n">' + int(s.work) + '</td><td class="n">' + int(s.present) + '</td><td class="n">' + (s.absent ? '<span class="due-bad">' + int(s.absent) + '</span>' : '0') + '</td><td class="n">' + int(s.leave) + '</td><td class="n">' + int(s.lateCount) + '</td><td class="n">' + hm(s.lateMin) + '</td><td class="n">' + hm(s.earlyMin) + '</td><td class="n">' + hm(s.ot) + '</td><td class="n">' + hm(s.otOff) + '</td><td class="n">' + (s.missing ? '<span class="due-warn">' + int(s.missing) + '</span>' : '0') + '</td></tr>').join('') +
       '</tbody><tfoot><tr><td>المجموع</td><td></td><td class="n">' + int(tot.present) + '</td><td class="n">' + int(tot.absent) + '</td><td class="n">' + int(tot.leave) + '</td><td class="n">' + int(tot.lateCount) + '</td><td class="n">' + hm(tot.lateMin) + '</td><td class="n">' + hm(tot.earlyMin) + '</td><td class="n">' + hm(tot.ot) + '</td><td class="n">' + hm(tot.otOff) + '</td><td class="n">' + int(tot.missing) + '</td></tr></tfoot></table></div>';
+    if (isPhone()) return attMonthP(ym, sums, tot);
     let out = card('تقرير ' + esc(dMonth(ym)), tools, {}) + card('', tbl, { flush: true });
     const pick = sums.find((x) => x.e.id === UI.attEmp);
     if (pick) {
@@ -901,7 +1370,7 @@ function parsePunchRows(rows, preferOrder) {
       const mapped = groups.filter((g) => UI.impMap[g.fp]).length;
       const rows = groups.map((g) => '<tr><td class="num">' + esc(g.fp) + '</td><td>' + esc(g.name || '—') + '</td><td class="n">' + int(g.n) + '</td><td>' + dShort(g.from) + ' – ' + dShort(g.to) + '</td><td><select id="imp-map-' + esc(g.fp) + '" data-ch="imp-map" data-fp="' + esc(g.fp) + '"><option value="">— تجاهل هذا الرقم —</option>' + activeEmps().map((e) => '<option value="' + esc(e.id) + '"' + (UI.impMap[g.fp] === e.id ? ' selected' : '') + '>' + esc(e.name) + '</option>').join('') + '</select></td></tr>').join('');
       const summary = '<p class="note">الملف: <b>' + esc(imp.file) + '</b> · <span class="num">' + int(imp.punches.length) + '</span> حركة من ' + dDate(dates[0]) + ' إلى ' + dDate(dates[dates.length - 1]) + ' · صيغة التاريخ المستخدمة: ' + (imp.order === 'mdy' ? 'شهر/يوم' : 'يوم/شهر') + (imp.bad ? ' · <span class="due-warn">' + int(imp.bad) + ' سطر لم يُقرأ</span>' : '') + '</p>';
-      const tbl = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>رقم البصمة</th><th>الاسم في الملف</th><th class="n">الحركات</th><th>الفترة</th><th>الموظف في النظام</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      const tbl = isPhone() ? impMapP(groups) : '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>رقم البصمة</th><th>الاسم في الملف</th><th class="n">الحركات</th><th>الفترة</th><th>الموظف في النظام</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
       const act = '<button class="btn btn-primary" data-act="imp-run"' + (UI.impBusy || !mapped ? ' disabled' : '') + '>' + (UI.impBusy ? 'جارٍ الاستيراد…' : 'استيراد حركات ' + int(mapped) + ' موظف') + '</button>';
       out += card('مطابقة أرقام البصمة', summary + '<div style="margin-top:.75rem">' + tbl + '</div><div class="actions" style="margin-top:1rem">' + act + '<span class="note">' + esc(UI.impProgress) + '</span></div>', { note: 'اختر الموظف المقابل لكل رقم. يحفظ النظام رقم البصمة في ملف الموظف لاستخدامه تلقائياً في المرات القادمة.' });
     }
@@ -926,6 +1395,7 @@ function parsePunchRows(rows, preferOrder) {
     const tbl = list.length ? '<div class="tbl-wrap" style="margin-top:.8rem"><table class="tbl"><thead><tr><th>الموظف</th><th>النوع</th><th>من</th><th>إلى</th><th class="n">أيام العمل</th><th>الحالة</th><th>ملاحظة</th><th></th></tr></thead><tbody>' +
       list.map((l) => '<tr><td>' + esc(empName(l.employee_id)) + '</td><td>' + esc(LEAVE_T[l.type] || l.type) + '</td><td>' + dDate(l.start) + '</td><td>' + dDate(l.end) + '</td><td class="n">' + int(l.days) + '</td><td>' + chip(LEAVE_S[l.status] || ['—', '']) + '</td><td class="wrap muted">' + esc(l.note) + '</td><td><div class="actions">' + (l.status !== 'approved' ? '<button class="btn btn-sm" data-act="leave-set" data-id="' + esc(l.id) + '" data-v="approved">موافقة</button>' : '') + (l.status === 'pending' ? '<button class="btn btn-sm btn-danger" data-act="leave-set" data-id="' + esc(l.id) + '" data-v="rejected">رفض</button>' : '') + '<button class="btn btn-sm" data-act="leave-print" data-id="' + esc(l.id) + '">طباعة</button><button class="btn btn-sm" data-act="leave-edit" data-id="' + esc(l.id) + '">تعديل</button></div></td></tr>').join('') + '</tbody></table></div>'
       : empty('لا توجد إجازات مسجلة', 'سجّل أي إجازة أو طلب إجازة من زر «تسجيل إجازة». الإجازات المعتمدة تظهر في الحضور تلقائياً ولا تُحسب غياباً.');
+    if (isPhone()) return leavesP(y, years, list, tools);
     return out + card('سجل الإجازات', tools + tbl);
   }
 
@@ -951,38 +1421,182 @@ function parsePunchRows(rows, preferOrder) {
       '</tbody><tfoot><tr><td>المجموع</td><td class="n">' + money(sum('basic')) + '</td><td class="n">' + money(sum('allow')) + '</td><td class="n">' + hm(sum('otMin') + sum('otOffMin')) + '</td><td class="n">' + money(sum('otPay')) + '</td><td class="n">' + money(sum('bonus')) + '</td><td class="n">' + money(sum('gross')) + '</td><td class="n">' + money(sum('absDed') + sum('unpaidDed')) + '</td><td class="n">' + money(sum('lateDed')) + '</td><td class="n">' + money(sum('ssc')) + '</td><td class="n">' + money(sum('tax')) + '</td><td class="n">' + money(sum('advance') + sum('other')) + '</td><td class="n">' + money(sum('net')) + '</td></tr></tfoot></table></div>';
     const cost = '<dl class="kv"><dt>صافي الرواتب المستحقة للموظفين</dt><dd class="num">' + money(sum('net')) + '</dd><dt>حصة الشركة في الضمان الاجتماعي (' + esc(S.settings.ssc_er) + '%)</dt><dd class="num">' + money(sum('sscEr')) + '</dd><dt>اقتطاع الضمان من الموظفين (' + esc(S.settings.ssc_emp) + '%)</dt><dd class="num">' + money(sum('ssc')) + '</dd><dt>ضريبة الدخل المقتطعة</dt><dd class="num">' + money(sum('tax')) + '</dd><dt class="tot">التكلفة الكلية على الشركة</dt><dd class="tot num">' + money(sum('gross') + sum('sscEr')) + '</dd></dl>';
     out += card('كشف رواتب ' + esc(dMonth(ym)), tools + (zero ? '<div class="banner gold" style="margin-top:.8rem">بعض الموظفين بدون راتب أساسي. أدخل الرواتب من صفحة الموظفين ليُحسب الكشف.</div>' : ''), {}) + card('', tbl, { flush: true, note: '' });
-    out += '<div class="grid2">' + card('تكلفة الشهر على الشركة', cost) + card('كيف يُحسب', '<ul class="note" style="margin:0;padding-inline-start:1.1rem;line-height:1.9"><li>الإجمالي = الأساسي + العلاوات + بدل الإضافي + المكافأة.</li><li>الغياب بدون إجازة ' + (S.settings.ded_absence ? 'يُخصم بأجر يوم لكل يوم' : 'لا يُخصم') + '، والإجازة بدون راتب ' + (S.settings.ded_unpaid ? 'تُخصم' : 'لا تُخصم') + '.</li><li>التأخير والخروج المبكر ' + (S.settings.ded_late ? 'يُخصمان بأجر الساعة' : 'يُسجّلان فقط ولا يُخصمان (يمكن تغيير ذلك من الإعدادات)') + '.</li><li>الضمان على (الأساسي + العلاوات) بحد أعلى <span class="num">' + money(S.settings.ssc_cap) + '</span> دينار.</li><li>المكافأة وضريبة الدخل والسلف تُدخل لكل موظف من كشف راتبه.</li></ul>') + '</div>';
+    const how = '<ul class="note" style="margin:0;padding-inline-start:1.1rem;line-height:1.9"><li>الإجمالي = الأساسي + العلاوات + بدل الإضافي + المكافأة.</li><li>الغياب بدون إجازة ' + (S.settings.ded_absence ? 'يُخصم بأجر يوم لكل يوم' : 'لا يُخصم') + '، والإجازة بدون راتب ' + (S.settings.ded_unpaid ? 'تُخصم' : 'لا تُخصم') + '.</li><li>التأخير والخروج المبكر ' + (S.settings.ded_late ? 'يُخصمان بأجر الساعة' : 'يُسجّلان فقط ولا يُخصمان (يمكن تغيير ذلك من الإعدادات)') + '.</li><li>الضمان على (الأساسي + العلاوات) بحد أعلى <span class="num">' + money(S.settings.ssc_cap) + '</span> دينار.</li><li>المكافأة وضريبة الدخل والسلف تُدخل لكل موظف من كشف راتبه.</li></ul>';
+    if (isPhone()) return payrollP(ym, p, locked, rows, sum, zero, cost, how);
+    out += '<div class="grid2">' + card('تكلفة الشهر على الشركة', cost) + card('كيف يُحسب', how) + '</div>';
     return out;
   }
 
   /* ---------- TASKS ---------- */
-  function renderTasks() {
-    const t = todayStr();
-    let out = head('المهام ومتابعة العملاء', 'مواعيد الإقرارات والمعاملات لكل عميل، والمحاسب المسؤول عنها. المهام المتكررة تُنشئ موعدها التالي تلقائياً عند إنجازها.', '<button class="btn btn-primary" data-act="task-new">مهمة جديدة</button>');
-    const q = UI.taskQ.trim();
-    let list = S.tasks.filter((x) => (UI.taskStatus === 'open' ? x.status !== 'done' : UI.taskStatus === 'all' ? true : x.status === UI.taskStatus) && (!UI.taskEmp || x.employee_id === UI.taskEmp) && (!UI.taskClient || x.client_id === UI.taskClient) && (!q || (x.title + ' ' + clientName(x.client_id) + ' ' + (x.category || '')).includes(q)));
-    list.sort((a, b) => (a.status === 'done') - (b.status === 'done') || String(a.due || '9999').localeCompare(String(b.due || '9999')));
+  function taskCounts(t) {
     const open = S.tasks.filter((x) => x.status !== 'done');
-    const overdue = open.filter((x) => x.due && x.due < t).length;
-    const week = open.filter((x) => x.due && x.due >= t && x.due <= addDays(t, 7)).length;
-    const waiting = open.filter((x) => x.status === 'waiting').length;
-    const doneM = S.tasks.filter((x) => x.status === 'done' && (x.done_at || '').slice(0, 7) === t.slice(0, 7)).length;
-    out += '<div class="tiles"><div class="tile"><span>مهام مفتوحة</span><b class="num">' + open.length + '</b></div><div class="tile ' + (overdue ? 'is-bad' : '') + '"><span>متأخرة عن موعدها</span><b class="num">' + overdue + '</b></div><div class="tile ' + (week ? 'is-warn' : '') + '"><span>مستحقة هذا الأسبوع</span><b class="num">' + week + '</b></div><div class="tile"><span>بانتظار العميل</span><b class="num">' + waiting + '</b></div><div class="tile is-ok"><span>أُنجزت هذا الشهر</span><b class="num">' + doneM + '</b></div></div>';
-    const tools = '<div class="toolbar"><label class="field grow"><span>بحث</span><input type="search" id="task-q" data-in="task-q" value="' + esc(UI.taskQ) + '" placeholder="اسم المهمة أو العميل"></label><label class="field"><span>الحالة</span><select id="task-status" data-ch="task-status"><option value="open"' + (UI.taskStatus === 'open' ? ' selected' : '') + '>المفتوحة</option><option value="all"' + (UI.taskStatus === 'all' ? ' selected' : '') + '>الكل</option>' + opts(TASK_S, UI.taskStatus) + '</select></label><label class="field"><span>المسؤول</span><select id="task-emp" data-ch="task-emp">' + empOpts(UI.taskEmp, 'الكل') + '</select></label>' + clientPicker({ attrs: 'id="task-client" data-ch="task-client"', qid: 'task-client-q', value: UI.taskClient, none: 'كل العملاء' }) + '</div>';
-    const tbl = list.length ? '<div class="tbl-wrap" style="margin-top:.8rem"><table class="tbl"><thead><tr><th>المهمة</th><th>العميل</th><th>المسؤول</th><th>الاستحقاق</th><th>الأولوية</th><th>الحالة</th><th></th></tr></thead><tbody>' +
-      list.map((x) => { const late = x.status !== 'done' && x.due && x.due < t; const days = x.due ? Math.round((Date.parse(x.due) - Date.parse(t)) / 864e5) : null;
-        return '<tr><td class="wrap"><b>' + esc(x.title) + '</b><div class="muted" style="font-size:var(--t-xs)">' + esc(x.category || '') + (x.recur && x.recur !== 'none' ? ' · يتكرر ' + esc(RECUR[x.recur][0]) : '') + '</div></td><td>' + esc(clientName(x.client_id)) + '</td><td>' + esc(empName(x.employee_id)) + '</td><td><span class="' + (late ? 'due-bad' : x.status !== 'done' && days != null && days <= 2 ? 'due-warn' : '') + '">' + dShort(x.due) + '</span>' + (x.status !== 'done' && days != null ? '<div class="muted" style="font-size:var(--t-xs)">' + (late ? 'متأخرة ' + int(-days) + ' يوم' : days === 0 ? 'اليوم' : 'بعد ' + int(days) + ' يوم') + '</div>' : '') + '</td><td>' + chip(TASK_P[x.priority] || TASK_P.normal) + '</td><td><select id="task-st-' + esc(x.id) + '" data-ch="task-st" data-id="' + esc(x.id) + '" aria-label="الحالة" style="min-width:8.5rem">' + opts(TASK_S, x.status) + '</select></td><td><button class="btn btn-sm" data-act="task-edit" data-id="' + esc(x.id) + '">تعديل</button></td></tr>'; }).join('') + '</tbody></table></div>'
-      : empty(S.tasks.length ? 'لا توجد مهام مطابقة' : 'لا توجد مهام بعد', S.tasks.length ? 'غيّر عوامل التصفية لعرض مهام أخرى.' : 'أضف أول مهمة، مثل «إقرار ضريبة المبيعات لشهري 11–12» لعميل، وحدد المحاسب المسؤول وموعد الاستحقاق.', S.tasks.length ? '' : '<button class="btn btn-primary" data-act="task-new">مهمة جديدة</button>');
+    return { open: open.length, overdue: open.filter((x) => x.due && x.due < t).length, week: open.filter((x) => x.due && x.due >= t && x.due <= addDays(t, 7)).length, waiting: open.filter((x) => x.status === 'waiting').length,
+      done: S.tasks.filter((x) => x.status === 'done' && (x.done_at || '').slice(0, 7) === t.slice(0, 7)).length };
+  }
+  /* UI.taskStatus: open | overdue | week | all, or one status. Sorted by due date then time, done last. */
+  function tasksFiltered(t) {
+    const f = UI.taskStatus, q = normAr(UI.taskQ);
+    const ok = (x) => { const open = x.status !== 'done'; return f === 'open' ? open : f === 'all' ? true : f === 'overdue' ? open && !!x.due && x.due < t : f === 'week' ? open && !!x.due && x.due >= t && x.due <= addDays(t, 7) : x.status === f; };
+    return S.tasks.filter((x) => ok(x) && (!UI.taskEmp || x.employee_id === UI.taskEmp) && (!UI.taskClient || x.client_id === UI.taskClient) && (!q || normAr([x.title, clientName(x.client_id), empName(x.employee_id), x.category, x.years, x.notes].join(' ')).includes(q)))
+      .sort((a, b) => (a.status === 'done') - (b.status === 'done') || String(a.due || '9999').localeCompare(String(b.due || '9999')) || String(a.time || '99').localeCompare(String(b.time || '99')));
+  }
+  function taskWhen(x, t) {
+    const done = x.status === 'done', days = x.due ? Math.round((Date.parse(x.due) - Date.parse(t)) / 864e5) : null, late = !done && days != null && days < 0;
+    return { late, days, cls: late ? 'due-bad' : !done && days != null && days <= 2 ? 'due-warn' : '', rel: done || days == null ? '' : late ? 'متأخرة ' + int(-days) + ' يوم' : days === 0 ? 'اليوم' : days === 1 ? 'غداً' : 'بعد ' + int(days) + ' يوم' };
+  }
+  /* A task as a phone card: who, for whom and when at a glance; opened, it changes status or priority in one press and sends the WhatsApp notice. */
+  function taskRec(x, t) {
+    const w = taskWhen(x, t), c = clientById(x.client_id), e = empById(x.employee_id), done = x.status === 'done', id = esc(x.id);
+    return rec({
+      k: 'task:' + x.id, tone: done ? 'done' : w.late || x.priority === 'urgent' ? 'bad' : x.priority === 'high' ? 'warn' : '',
+      title: esc(x.title), sub: esc(c ? c.name : 'بدون عميل') + (x.years ? ' · <span class="num">' + esc(x.years) + '</span>' : ''),
+      chips: '<span class="chip plain">' + esc(e ? shortName(e.name) : 'بدون مسؤول') + '</span>' + (x.priority && x.priority !== 'normal' ? chip(TASK_P[x.priority] || TASK_P.normal) : '') + chip(TASK_S[x.status] || TASK_S.new) + (x.wa_at ? chip(['واتساب ✓', 'ok']) : ''),
+      end: '<b class="' + w.cls + '" style="font-size:var(--t-md)">' + (x.due ? dShort(x.due) : 'بدون موعد') + '</b><small>' + [x.time ? '<span class="num">' + t12(x.time) + '</span>' : '', w.rel].filter(Boolean).join(' · ') + '</small>',
+      more: kv([['العميل', c ? esc(c.name) : 'داخلي / بدون عميل'], ['المسؤول', e ? esc(e.name) : '—'], ['الموعد', x.due ? esc(fullDay(x.due)) + (x.time ? ' · <span class="num">' + t12(x.time) + '</span>' : '') : '—'], x.years ? ['السنوات المطلوبة', '<span class="num">' + esc(x.years) + '</span>'] : null,
+        ['التصنيف', esc(x.category || '—')], x.recur && x.recur !== 'none' && RECUR[x.recur] ? ['التكرار', esc(RECUR[x.recur][0])] : null, x.notes ? ['ملاحظات', esc(x.notes)] : null, x.wa_at ? ['إشعار واتساب', 'أُرسل ' + esc(stamp(x.wa_at))] : null]) +
+        '<div class="pick-l">الحالة</div>' + pick('task-set', 'data-id="' + id + '" data-f="status"', x.status, Object.entries(TASK_S).map(([k, v]) => [k, esc(v[0]), k === 'done' ? 'ok' : ''])) +
+        '<div class="pick-l">الأولوية</div>' + pick('task-set', 'data-id="' + id + '" data-f="priority"', x.priority || 'normal', Object.entries(TASK_P).map(([k, v]) => [k, esc(v[0]), v[1]])) +
+        '<div class="rec-a"><button class="btn btn-wa" data-act="task-wa" data-id="' + id + '">' + ic('wa') + (x.wa_at ? 'تذكير واتساب' : 'واتساب للمسؤول') + '</button><button class="btn" data-act="task-edit" data-id="' + id + '">تعديل</button></div>',
+    });
+  }
+  function renderTasks() {
+    const t = todayStr(), n = taskCounts(t), list = tasksFiltered(t), ph = isPhone();
+    let out = head(ph ? 'المهام' : 'المهام ومتابعة العملاء', ph ? '' : 'مواعيد الإقرارات والمعاملات لكل عميل، والمحاسب المسؤول عنها. المهام المتكررة تُنشئ موعدها التالي تلقائياً عند إنجازها.',
+      (ph ? '' : '<button class="btn" data-act="task-voice">' + ic('mic') + 'مهمة صوتية</button>') + '<button class="btn btn-primary" data-act="task-new">' + ic('plus') + 'مهمة جديدة</button>');
+    const FL = [['open', 'مهام مفتوحة', 'المفتوحة', n.open, ''], ['overdue', 'متأخرة عن موعدها', 'متأخرة', n.overdue, 'bad'], ['week', 'مستحقة هذا الأسبوع', 'هذا الأسبوع', n.week, 'warn'], ['waiting', 'بانتظار العميل', 'بانتظار العميل', n.waiting, ''], ['done', 'أُنجزت هذا الشهر', 'منجزة', n.done, 'ok']];
+    const search = '<label class="field grow"><span>بحث</span><input type="search" id="task-q" data-in="task-q" value="' + esc(UI.taskQ) + '" placeholder="اسم المهمة أو العميل أو الموظف"></label>';
+    const empSel = '<label class="field"><span>المسؤول</span><select id="task-emp" data-ch="task-emp">' + empOpts(UI.taskEmp, 'الكل') + '</select></label>';
+    const cliSel = clientPicker({ attrs: 'id="task-client" data-ch="task-client"', qid: 'task-client-q', value: UI.taskClient, none: 'كل العملاء' });
+    const none = empty(S.tasks.length ? 'لا توجد مهام مطابقة' : 'لا توجد مهام بعد', S.tasks.length ? 'غيّر عوامل التصفية لعرض مهام أخرى.' : 'أضف أول مهمة بالصوت أو بالكتابة، مثل «إقرار ضريبة المبيعات لشهري 11–12» لعميل، وحدد المحاسب المسؤول والموعد.', S.tasks.length ? '' : '<button class="btn btn-primary" data-act="task-new">مهمة جديدة</button>');
+    const open = S.tasks.filter((x) => x.status !== 'done');
     const per = activeEmps().map((e) => { const mine = open.filter((x) => x.employee_id === e.id); const od = mine.filter((x) => x.due && x.due < t).length; return '<div class="li"><div><b>' + esc(e.name) + '</b><small>' + esc(e.title || '') + '</small></div><div class="end"><b class="num">' + mine.length + '</b><small>' + (od ? '<span class="due-bad">' + od + ' متأخرة</span>' : 'مفتوحة') + '</small></div></div>'; }).join('');
-    return out + '<div class="grid-main">' + card('قائمة المهام', tools + tbl) + card('توزيع العمل', '<div class="list">' + per + '</div>') + '</div>';
+    if (ph) {
+      const grp = (x) => (x.status === 'done' ? 'منجزة' : !x.due ? 'بدون موعد' : x.due < t ? 'متأخرة عن موعدها' : x.due === t ? 'اليوم' : x.due === addDays(t, 1) ? 'غداً' : x.due <= addDays(t, 7) ? 'خلال أسبوع' : 'لاحقاً');
+      let cards = '', last = null;
+      for (const x of list) { const g = grp(x); if (g !== last) { cards += (last == null ? '' : '</div>') + '<div class="sec-t">' + g + '</div><div class="recs">'; last = g; } cards += taskRec(x, t); }
+      if (last != null) cards += '</div>';
+      const active = [UI.taskEmp, UI.taskClient].filter(Boolean).length;
+      return out + voiceCta() + pick('task-f', '', UI.taskStatus, FL.map(([v, , l, c, tone]) => [v, l + ' <b class="num">' + c + '</b>', tone]).concat([['all', 'الكل', '']])) +
+        card('', search + '<div style="margin-top:.6rem">' + fold('task:f', 'تصفية' + (active ? ' <b class="num">(' + active + ')</b>' : ''), '<div class="toolbar">' + empSel + cliSel + '</div>', !!active) + '</div>') +
+        (list.length ? cards : card('', none)) + sect('task:per', 'توزيع العمل', '<div class="list">' + per + '</div>');
+    }
+    out += '<div class="tiles">' + FL.map(([v, l, , c, tone]) => '<button type="button" class="tile' + (tone && (c || tone === 'ok') ? ' is-' + tone : '') + '" data-act="task-f" data-v="' + v + '" aria-pressed="' + (UI.taskStatus === v) + '"><span>' + l + '</span><b class="num">' + c + '</b></button>').join('') + '</div>';
+    const stSel = '<label class="field"><span>الحالة</span><select id="task-status" data-ch="task-status">' + [['open', 'المفتوحة'], ['overdue', 'المتأخرة'], ['week', 'مستحقة هذا الأسبوع'], ['all', 'الكل']].map(([v, l]) => '<option value="' + v + '"' + (UI.taskStatus === v ? ' selected' : '') + '>' + l + '</option>').join('') + opts(TASK_S, UI.taskStatus) + '</select></label>';
+    const tbl = list.length ? '<div class="tbl-wrap" style="margin-top:.8rem"><table class="tbl"><thead><tr><th>المهمة</th><th>العميل</th><th>المسؤول</th><th>الاستحقاق</th><th>الأولوية</th><th>الحالة</th><th></th></tr></thead><tbody>' +
+      list.map((x) => { const w = taskWhen(x, t), id = esc(x.id), pr = x.priority || 'normal';
+        return '<tr' + (x.status !== 'done' && pr !== 'normal' ? ' class="pr-' + esc(pr) + '"' : '') + '><td class="wrap"><b>' + esc(x.title) + '</b><div class="muted" style="font-size:var(--t-xs)">' + esc(x.category || '') + (x.years ? ' · سنوات <span class="num">' + esc(x.years) + '</span>' : '') + (x.recur && x.recur !== 'none' && RECUR[x.recur] ? ' · يتكرر ' + esc(RECUR[x.recur][0]) : '') + (x.wa_at ? ' · واتساب ✓' : '') + '</div></td><td>' + esc(clientName(x.client_id)) + '</td><td>' + esc(empName(x.employee_id)) + '</td>' +
+          '<td><span class="' + w.cls + '">' + dShort(x.due) + '</span>' + (x.time ? ' <span class="num muted">' + t12(x.time) + '</span>' : '') + (w.rel ? '<div class="muted" style="font-size:var(--t-xs)">' + w.rel + '</div>' : '') + '</td>' +
+          '<td><select id="task-pr-' + id + '" data-ch="task-pr" data-id="' + id + '" aria-label="الأولوية" style="min-width:6rem">' + opts(TASK_P, pr) + '</select></td><td><select id="task-st-' + id + '" data-ch="task-st" data-id="' + id + '" aria-label="الحالة" style="min-width:8.5rem">' + opts(TASK_S, x.status) + '</select></td>' +
+          '<td><div class="actions" style="flex-wrap:nowrap"><button class="btn btn-sm' + (x.wa_at ? '' : ' btn-wa') + '" data-act="task-wa" data-id="' + id + '">' + ic('wa') + 'واتساب</button><button class="btn btn-sm" data-act="task-edit" data-id="' + id + '">تعديل</button></div></td></tr>'; }).join('') + '</tbody></table></div>' : none;
+    return out + card('قائمة المهام', '<div class="toolbar">' + search + stSel + empSel + cliSel + '</div>' + tbl) + card('توزيع العمل', '<div class="list per-grid">' + per + '</div>');
+  }
+  async function taskSet(id, k, v) {
+    const x = S.tasks.find((y) => y.id === id);
+    if (!x || (x[k] || (k === 'priority' ? 'normal' : '')) === v) return;
+    const { id: _id, ...rest } = x, doc = { ...rest, [k]: v };
+    if (k === 'status') doc.done_at = v === 'done' ? new Date().toISOString() : '';
+    try {
+      await put('tasks/' + id, doc);
+      if (k === 'status' && v === 'done' && x.status !== 'done') await spawnNext({ ...x, status: v });
+      toast(k === 'status' ? 'الحالة: ' + TASK_S[v][0] : 'الأولوية: ' + TASK_P[v][0]);
+    } catch (e) { toast(dbMsg(e), true); }
+  }
+
+  /* ---------- voice task: the browser turns speech into text; parseTaskSpeech() (pure block) turns the text into the form's fields ---------- */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const voice = { rec: null, on: false, langs: ['ar-JO', 'ar-SA', 'ar'], li: 0 };
+  function voiceState(msg, on) {
+    const s = document.getElementById('voice-state'), b = document.getElementById('voice-mic');
+    if (s && msg != null) s.textContent = msg;
+    if (b) b.setAttribute('aria-pressed', String(!!on));
+    voice.on = !!on;
+  }
+  function voiceStop() { const r = voice.rec; voice.rec = null; voice.on = false; if (r) { r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch (e) { /* never started */ } } }
+  function voiceStart() {
+    const ta = document.getElementById('voice-text');
+    if (!ta) return;
+    if (!SR) { voiceState('هذا المتصفح لا يحوّل الصوت إلى نص. اضغط ميكروفون لوحة المفاتيح وأملِ المهمة في المربع.', false); ta.focus(); return; }
+    voiceStop();
+    const r = new SR(), base = ta.value.trim();
+    let err = '';
+    r.lang = voice.langs[voice.li]; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
+    r.onresult = (ev) => {
+      const parts = []; // Android Chrome repeats what it already heard in every new result: keep the longest of each run
+      for (let i = 0; i < ev.results.length; i++) { const s = String(ev.results[i][0].transcript || '').trim(); if (!s) continue; const k = parts.length - 1; if (k >= 0 && s.startsWith(parts[k])) parts[k] = s; else parts.push(s); }
+      ta.value = (base ? base + ' ' : '') + parts.join(' ');
+      voiceApply();
+    };
+    r.onerror = (ev) => { err = ev.error || 'error'; };
+    r.onend = () => {
+      if (voice.rec !== r) return;
+      voice.rec = null;
+      if (err === 'language-not-supported' && voice.li < voice.langs.length - 1) { voice.li++; voiceStart(); return; }
+      voiceState(err === 'not-allowed' || err === 'service-not-allowed' ? 'الميكروفون غير مسموح. اسمح به من إعدادات المتصفح، أو اضغط ميكروفون لوحة المفاتيح وأملِ المهمة في المربع.'
+        : err === 'no-speech' ? 'لم أسمع شيئاً. اضغط الميكروفون وحاول مرة ثانية.' : err === 'network' ? 'تحويل الصوت يحتاج إنترنت. تأكد من الاتصال ثم حاول.' : err === 'audio-capture' ? 'لا يوجد ميكروفون متاح على هذا الجهاز.'
+        : ta.value.trim() ? 'راجع الحقول ثم احفظ، أو اضغط الميكروفون لتكمل.' : 'اضغط الميكروفون وقل المهمة', false);
+    };
+    try { r.start(); voice.rec = r; voiceState('أسمعك… قل المهمة ثم اضغط للإيقاف', true); } catch (e) { voiceState('تعذّر تشغيل الميكروفون. حاول مرة ثانية.', false); }
+  }
+  /* Fill the form from the sentence. A field the person edited by hand (data-touched) is left alone. */
+  function voiceApply() {
+    const f = document.getElementById('mform'), ta = document.getElementById('voice-text');
+    if (!f || !ta) return;
+    const text = ta.value.trim(), r = parseTaskSpeech(text, { today: todayStr(), employees: S.employees, clients: S.clients }), hid = f.elements.client_id;
+    const set = (name, v) => { const el = f.elements[name]; if (el && !el.dataset.touched) el.value = v; };
+    if (text) {
+      set('title', r.title); set('employee_id', r.employee_id); set('category', r.category || 'أخرى'); set('due', r.due); set('time', r.time); set('years', r.years.join('، ')); set('priority', r.priority); set('recur', r.recur);
+      if (!hid.dataset.touched && hid.value !== r.client_id) cpPick(hid.closest('.cpick'), r.client_id);
+    }
+    const e = empById(f.elements.employee_id.value), c = clientById(hid.value), sum = document.getElementById('voice-sum'), alt = document.getElementById('voice-alt');
+    if (sum) sum.innerHTML = !text ? '' : chip(e ? ['المسؤول: ' + shortName(e.name), 'ok'] : ['لم أسمع اسم الموظف', 'warn']) + chip(c ? ['العميل: ' + c.name, 'ok'] : r.clientAlt.length ? ['أكثر من عميل بهذا الاسم', 'warn'] : ['بدون عميل', '']) +
+      chip(r.dueSaid ? [fullDay(r.due) + (r.time ? ' · ' + t12(r.time) : ''), 'ok'] : ['لم تذكر موعداً: اليوم', 'warn']) + (r.years.length ? chip(['السنوات ' + r.years.join('، '), 'ok']) : '') + (r.priority !== 'normal' ? chip(TASK_P[r.priority]) : '');
+    const others = text && !hid.dataset.touched ? r.clientAlt.filter((id) => !c || id !== c.id) : [];
+    if (alt) alt.innerHTML = others.length ? '<span class="note">هل تقصد:</span>' + others.map((id) => '<button type="button" class="chip-btn" data-act="voice-client" data-v="' + esc(id) + '">' + esc(clientName(id)) + '</button>').join('') : '';
+  }
+
+  /* ---------- WhatsApp notice: the message opens in WhatsApp addressed to the employee in charge; the manager presses send there ---------- */
+  const waLink = (num, text) => 'https://wa.me/' + num + '?text=' + encodeURIComponent(text);
+  function taskMsg(x) {
+    const e = empById(x.employee_id), c = clientById(x.client_id);
+    const lines = ['*المهمة:* ' + x.title, c ? '*العميل:* ' + c.name : '', c && c.tax_no ? '*الرقم الضريبي:* ' + c.tax_no : '', x.years ? '*السنوات المطلوبة:* ' + x.years : '',
+      x.due ? '*الموعد:* ' + fullDay(x.due) + (x.time ? ' الساعة ' + t12(x.time) : '') : '', '*الأولوية:* ' + (TASK_P[x.priority] || TASK_P.normal)[0],
+      x.status && x.status !== 'new' && TASK_S[x.status] ? '*الحالة:* ' + TASK_S[x.status][0] : '', x.category ? '*التصنيف:* ' + x.category : '', x.notes ? '*ملاحظات:* ' + x.notes : ''].filter(Boolean);
+    return [x.wa_at ? '*تذكير بمهمة*' : '*مهمة جديدة*', 'مرحباً ' + firstName(e && e.name) + '،', ''].concat(lines, ['', S.settings.company_ar]).join('\n');
+  }
+  function waSheet(id) {
+    const x = S.tasks.find((y) => y.id === id);
+    if (!x) return;
+    const e = empById(x.employee_id);
+    if (!e) { toast('حدّد الموظف المسؤول عن المهمة أولاً من «تعديل».', true); return; }
+    const num = waNumber(e.phone);
+    if (!num) {
+      openModal({
+        title: 'رقم واتساب ' + esc(shortName(e.name)),
+        body: '<p class="note" style="margin:0">لا يوجد رقم هاتف في ملف ' + esc(e.name) + '. أدخله مرة واحدة ويُحفظ في ملفه.</p><label class="field"><span>رقم الهاتف</span><input type="tel" name="phone" dir="ltr" value="' + esc(e.phone || '') + '" placeholder="+962 7 XXXX XXXX"></label>',
+        submit: 'حفظ ومتابعة',
+        onSubmit: async (v) => {
+          if (!waNumber(v.phone)) throw 'اكتب الرقم كاملاً، مثل 0791234567.';
+          const { id: eid, ...rest } = e;
+          await put('employees/' + eid, { ...rest, phone: v.phone });
+          setTimeout(() => waSheet(id), 250);
+        },
+      });
+      return;
+    }
+    const msg = taskMsg(x);
+    openModal({
+      title: 'إشعار واتساب إلى ' + esc(shortName(e.name)), cancel: 'لاحقاً',
+      body: '<p class="note" style="margin:0">تُفتح الرسالة في واتساب على الرقم <bdi class="num">+' + num + '</bdi>، واضغط «إرسال» هناك. يمكنك تعديل النص قبل الفتح.</p><textarea class="wa-msg" id="wa-text" data-num="' + num + '" aria-label="نص الرسالة">' + esc(msg) + '</textarea>',
+      footLeft: '<a class="btn btn-wa" id="wa-go" href="' + esc(waLink(num, msg)) + '" target="_blank" rel="noopener" data-act="wa-go" data-id="' + esc(id) + '">' + ic('wa') + 'فتح واتساب للإرسال</a>',
+    });
   }
 
   /* ---------- CLIENTS ---------- */
   function clientsFiltered() {
-    const q = UI.clientQ.trim();
+    const q = normAr(UI.clientQ);
     const cyc = { even: 0, odd: 1 };
     return S.clients.filter((c) =>
-      (!q || [c.name, c.tax_no, c.contact, c.notes, c.doc_status, c.directorate].some((v) => String(v || '').includes(q))) &&
+      (!q || [c.name, c.tax_no, c.contact, c.notes, c.doc_status, c.directorate].some((v) => normAr(v).includes(q))) &&
       (!UI.clientEmp || (UI.clientEmp === 'none' ? !empById(c.employee_id) : c.employee_id === UI.clientEmp)) &&
       (!UI.clientCycle || (UI.clientCycle === 'none' ? !c.gst_cycle : c.gst_cycle === UI.clientCycle)) &&
       (!UI.clientKind || c.kind === UI.clientKind))
@@ -999,10 +1613,12 @@ function parsePunchRows(rows, preferOrder) {
     const all = S.clients, list = clientsFiltered(), t = todayStr();
     const n = (f) => all.filter(f).length;
     if (all.length) out += '<div class="tiles"><div class="tile"><span>كل العملاء</span><b class="num">' + int(all.length) + '</b></div><div class="tile"><span>شركات</span><b class="num">' + int(n((c) => c.kind === 'company')) + '</b></div><div class="tile"><span>مؤسسات فردية</span><b class="num">' + int(n((c) => c.kind === 'est')) + '</b></div><div class="tile is-info"><span>الدورة الزوجية</span><b class="num">' + int(n((c) => c.gst_cycle === 'even')) + '</b></div><div class="tile"><span>الدورة الفردية</span><b class="num" style="color:var(--gold-ink)">' + int(n((c) => c.gst_cycle === 'odd')) + '</b></div></div>';
-    const tools = '<div class="toolbar"><label class="field grow"><span>بحث</span><input type="search" id="client-q" data-in="client-q" value="' + esc(UI.clientQ) + '" placeholder="اسم العميل أو الرقم الضريبي أو المديرية"></label>' +
-      '<label class="field"><span>المحاسب المسؤول</span><select id="client-emp" data-ch="client-emp"><option value="">الكل</option>' + S.employees.map((e) => '<option value="' + esc(e.id) + '"' + (e.id === UI.clientEmp ? ' selected' : '') + '>' + esc(e.name) + '</option>').join('') + '<option value="none"' + (UI.clientEmp === 'none' ? ' selected' : '') + '>بدون مسؤول</option></select></label>' +
+    const search = '<label class="field grow"><span>بحث</span><input type="search" id="client-q" data-in="client-q" value="' + esc(UI.clientQ) + '" placeholder="اسم العميل أو الرقم الضريبي أو المديرية"></label>';
+    const sels = '<label class="field"><span>المحاسب المسؤول</span><select id="client-emp" data-ch="client-emp"><option value="">الكل</option>' + S.employees.map((e) => '<option value="' + esc(e.id) + '"' + (e.id === UI.clientEmp ? ' selected' : '') + '>' + esc(e.name) + '</option>').join('') + '<option value="none"' + (UI.clientEmp === 'none' ? ' selected' : '') + '>بدون مسؤول</option></select></label>' +
       '<label class="field"><span>الدورة</span><select id="client-cycle" data-ch="client-cycle"><option value="">الكل</option><option value="even"' + (UI.clientCycle === 'even' ? ' selected' : '') + '>زوجية</option><option value="odd"' + (UI.clientCycle === 'odd' ? ' selected' : '') + '>فردية</option><option value="none"' + (UI.clientCycle === 'none' ? ' selected' : '') + '>غير مسجّل بالمبيعات</option></select></label>' +
-      '<label class="field"><span>النوع</span><select id="client-kind" data-ch="client-kind">' + opts(CLIENT_K, UI.clientKind, 'الكل') + '</select></label></div>';
+      '<label class="field"><span>النوع</span><select id="client-kind" data-ch="client-kind">' + opts(CLIENT_K, UI.clientKind, 'الكل') + '</select></label>';
+    const tools = '<div class="toolbar">' + search + sels + '</div>';
+    if (isPhone()) return clientsP(all, list, t, '<div class="toolbar">' + sels + '</div>');
     if (!all.length) return out + card('', tools + empty('لا يوجد عملاء بعد', 'أضف عملاء المكتب لتربط بهم المهام ومواعيد الإقرارات.', '<button class="btn btn-primary" data-act="client-new">عميل جديد</button>'));
     out += card('', tools + (list.length ? '<p class="note" style="margin-top:.6rem">يظهر <span class="num">' + int(list.length) + '</span> من <span class="num">' + int(all.length) + '</span> عميل.</p>' : empty('لا يوجد عملاء مطابقون', 'غيّر البحث أو عوامل التصفية.')));
     for (const g of clientGroups(list)) {
@@ -1024,6 +1640,7 @@ function parsePunchRows(rows, preferOrder) {
     const missingFp = activeEmps().filter((e) => !e.fp_id && e.track !== false).length;
     const missingSal = activeEmps().filter((e) => !Number(e.basic_salary)).length;
     if (missingFp || missingSal) out += '<div class="banner gold">' + (missingFp ? '<span>' + int(missingFp) + ' موظف بدون رقم بصمة: يُحدَّد تلقائياً عند أول استيراد، أو أدخله يدوياً.</span>' : '') + (missingSal ? '<span>' + int(missingSal) + ' موظف بدون راتب أساسي: أدخله ليُحسب كشف الرواتب.</span>' : '') + '</div>';
+    if (isPhone()) return employeesP(list, t, missingFp, missingSal);
     const tbl = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th>رقم البصمة</th><th>تاريخ التعيين</th><th class="n">سنوات الخدمة</th><th class="n">الراتب الأساسي</th><th class="n">العلاوات</th><th>الضمان</th><th>الهاتف</th><th>الحالة</th><th></th></tr></thead><tbody>' +
       list.map((e) => '<tr><td>' + who(e, esc(e.title || '—')) + '</td><td class="num">' + esc(e.fp_id || '—') + '</td><td>' + dDate(e.hire_date) + '</td><td class="n">' + (e.hire_date ? yearsOfService(e, t).toFixed(1) : '—') + '</td><td class="n">' + (Number(e.basic_salary) ? money(e.basic_salary) : '<span class="due-warn">—</span>') + '</td><td class="n">' + money(e.allowances) + '</td><td>' + (e.ssc === false ? '<span class="muted">غير مشترك</span>' : chip(['مشترك', 'ok'])) + '</td><td class="num">' + esc(e.phone || '—') + '</td><td>' + (e.active === false ? chip(['غير فعّال', '']) : e.track === false ? chip(['معفى من البصمة', 'info']) : e.field_from && (!e.field_to || e.field_to >= t) ? chip(['عمل خارجي' + (e.field_from > t ? ' من ' + dShort(e.field_from) : '') + (e.field_to ? ' حتى ' + dShort(e.field_to) : ''), 'info']) : chip(['فعّال', 'ok'])) + '</td><td><button class="btn btn-sm" data-act="emp-edit" data-id="' + esc(e.id) + '">تعديل</button></td></tr>').join('') + '</tbody></table></div>';
     return out + card('', tbl, { flush: true }) + '<label class="check"><input type="checkbox" id="emp-inactive" data-ch="emp-inactive"' + (UI.empShowInactive ? ' checked' : '') + '> إظهار الموظفين غير الفعّالين</label>';
@@ -1033,7 +1650,7 @@ function parsePunchRows(rows, preferOrder) {
   function renderConfig() {
     const s = S.settings;
     let out = head('الإعدادات', 'قواعد الدوام والإضافي والرواتب التي يحسب بها النظام. أي تغيير يُطبَّق على الأشهر غير المعتمدة.');
-    const sch = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>اليوم</th><th>يوم عمل</th><th>بداية الدوام</th><th>نهاية الدوام</th></tr></thead><tbody>' +
+    const sch = isPhone() ? schedP(s) : '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>اليوم</th><th>يوم عمل</th><th>بداية الدوام</th><th>نهاية الدوام</th></tr></thead><tbody>' +
       WEEK.map((d) => '<tr><td>' + DAYNAME[d] + '</td><td><label class="check"><input type="checkbox" name="on_' + d + '"' + (s.schedule[d].on ? ' checked' : '') + '> عمل</label></td><td><input type="time" name="start_' + d + '" value="' + esc(s.schedule[d].start) + '"></td><td><input type="time" name="end_' + d + '" value="' + esc(s.schedule[d].end) + '"></td></tr>').join('') + '</tbody></table></div>';
     const num = (n, l, v, step, hint) => '<label class="field"><span>' + l + '</span><input type="number" name="' + n + '" value="' + esc(v) + '" step="' + (step || 1) + '" min="0">' + (hint ? '<small>' + hint + '</small>' : '') + '</label>';
     const chk = (n, l, v) => '<label class="check"><input type="checkbox" name="' + n + '"' + (v ? ' checked' : '') + '> ' + l + '</label>';
@@ -1061,17 +1678,141 @@ function parsePunchRows(rows, preferOrder) {
     return out;
   }
 
+  /* ---------- phone pages: the same data as the desktop tables, one card per record ---------- */
+  function homeP(d) {
+    const { t, sc, rows } = d;
+    const open = S.tasks.filter((x) => x.status !== 'done'), od = open.filter((x) => x.due && x.due < t).length, wk = open.filter((x) => x.due && x.due >= t && x.due <= addDays(t, 7)).length;
+    const pend = S.leaves.filter((l) => l.status === 'pending').length, pay = S.payroll[d.ym], field = rows.filter((x) => x.r.status === 'field').length;
+    const cyc = (k) => S.clients.filter((c) => c.gst_cycle === k).length;
+    const tile = (k, big, small, tone, txt) => '<a class="app-tile' + (tone ? ' is-' + tone : '') + '" href="#' + k + '"><span class="app-i">' + ic(k) + '</span><strong class="num' + (txt ? ' txt' : '') + '">' + big + '</strong><b>' + ROUTES[k][0] + '</b><small>' + small + '</small></a>';
+    let out = head('لوحة المتابعة', d.sub + bridgeChip()) + voiceCta();
+    out += '<div class="app-grid">' +
+      tile('attendance', d.here + ' <small>/ ' + rows.length + '</small>', sc.type === 'work' ? 'متأخر ' + d.late + ' · لم يحضر ' + d.away : 'اليوم عطلة', d.away ? 'bad' : d.late ? 'warn' : 'ok') +
+      tile('tasks', int(open.length), (od ? 'متأخرة ' + od + ' · ' : '') + 'هذا الأسبوع ' + wk, od ? 'bad' : '') +
+      tile('leaves', int(pend), pend ? 'طلب بانتظار موافقتك' : 'في إجازة اليوم ' + d.onLeave, pend ? 'warn' : '') +
+      tile('payroll', pay && pay.locked ? 'معتمد' : 'مسودة', 'رواتب ' + esc(dMonth(d.ym)), pay && pay.locked ? 'ok' : 'gold', true) +
+      tile('clients', int(S.clients.length), 'زوجية ' + cyc('even') + ' · فردية ' + cyc('odd')) +
+      tile('employees', int(activeEmps().length), field ? 'عمل خارجي اليوم ' + field : 'موظف فعّال') + '</div>';
+    if (!d.hasData) out += '<div class="banner gold"><span>لا توجد حركات بصمة بعد. استورد ملف جهاز البصمة أو سجّل الحضور يدوياً.</span><a class="btn btn-sm" href="#attendance" data-act="att-tab" data-v="import">استيراد ملف البصمة</a></div>';
+    out += card('يحتاج انتباهك', d.att);
+    const board = recs(rows.map(({ e, r }) => {
+      const times = [r.in ? 'دخول <span class="num">' + t12(r.in) + '</span>' : '', r.out ? 'خروج <span class="num">' + t12(r.out) + '</span>' : '', r.late ? '<span class="due-warn">تأخير ' + hm(r.late) + '</span>' : '', r.ot + r.otOff ? 'إضافي ' + hm(r.ot + r.otOff) : ''].filter(Boolean).join(' · ');
+      return rec({ av: e.name, title: esc(shortName(e.name)), sub: times || esc(e.title || ''), end: chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : ''), act: 'data-act="att-edit" data-emp="' + esc(e.id) + '" data-date="' + t + '"' });
+    }));
+    out += sect('home:today', 'حضور اليوم', '<p class="note" style="margin:0 0 .6rem">اضغط على أي موظف لتعديل حركته.</p>' + board, { open: true, flush: true });
+    out += sect('home:month', 'ملخص ' + esc(dMonth(d.ym)) + ' حتى اليوم', recs(d.ms.map(({ e, s }) => rec({
+      k: 'hm:' + e.id, av: e.name, title: esc(shortName(e.name)), sub: 'حضور ' + int(s.present) + ' من ' + int(s.work) + ' يوم',
+      end: s.absent ? '<b class="num due-bad">' + int(s.absent) + '</b><small>غياب</small>' : '',
+      more: stats([['غياب', int(s.absent), s.absent ? 'bad' : ''], ['مرات التأخير', int(s.lateCount), s.lateCount ? 'warn' : ''], ['التأخير', hm(s.lateMin)], ['إضافي', hm(s.ot + s.otOff)], ['إجازة', int(s.leave)], ['بصمات ناقصة', int(s.missing), s.missing ? 'warn' : '']]),
+    }))) + '<div class="actions" style="margin-top:.7rem"><a class="btn" href="#attendance" data-act="att-tab" data-v="month">التقرير الشهري</a></div>', { flush: true });
+    return out;
+  }
+  const dayNav = (d) => '<div class="daynav"><button class="btn" data-act="att-day" data-v="-1" aria-label="اليوم السابق">' + ic('back') + '</button><input type="date" id="att-date" data-ch="att-date" value="' + d + '" aria-label="التاريخ"><button class="btn" data-act="att-day" data-v="1" aria-label="اليوم التالي">' + ic('fwd') + '</button><button class="btn" data-act="att-day" data-v="0">اليوم</button></div>';
+  function attDayP(d, sc, info, rows) {
+    const n = (f) => rows.filter((x) => f(x.r)).length, late = n((r) => r.late > 0), away = n((r) => ['absent', 'notin'].includes(r.status)), lv = n((r) => r.status === 'leave');
+    const sum = stats([['حاضر', n((r) => ['present', 'late', 'inside', 'missing', 'field', 'offwork'].includes(r.status)), 'ok'], ['متأخر', late, late ? 'warn' : ''], ['غائب', away, away ? 'bad' : ''], ['إجازة', lv, lv ? 'info' : '']], 'four');
+    const list = recs(rows.map(({ e, r }) => rec({
+      k: 'att:' + e.id, av: e.name, title: esc(shortName(e.name)),
+      sub: r.in ? '<span class="num">' + t12(r.in) + ' – ' + (r.out ? t12(r.out) : '…') + '</span>' + (r.worked ? ' · ' + hm(r.worked) + ' ساعة' : '') : r.note ? esc(r.note) : 'لا توجد بصمة',
+      end: chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + (r.manual ? '<small>معدّل يدوياً</small>' : ''),
+      more: stats([['ساعات العمل', hm(r.worked)], ['تأخير', hm(r.late), r.late ? 'warn' : ''], ['خروج مبكر', hm(r.early)], ['إضافي' + (r.otOff ? ' (عطلة)' : ''), hm(r.ot + r.otOff), r.ot + r.otOff ? 'gold' : ''], ['رقم البصمة', esc(e.fp_id || '—'), e.fp_id ? '' : 'warn']]) +
+        (r.note ? '<p class="note">' + esc(r.note) + '</p>' : '') + '<div class="rec-a"><button class="btn btn-primary" data-act="att-edit" data-emp="' + esc(e.id) + '" data-date="' + d + '">تعديل الحركة</button></div>',
+    })));
+    return card(esc(F.full.format(dateObj(d))), dayNav(d) + '<p class="note" style="margin:.6rem 0 0">' + info + '</p>') + sum + list;
+  }
+  function attMonthP(ym, sums, tot) {
+    const one = sums.find((x) => x.e.id === UI.attEmp);
+    let out = card('تقرير ' + esc(dMonth(ym)), '<div class="toolbar"><label class="field"><span>الشهر</span><input type="month" id="att-month" data-ch="att-month" value="' + ym + '"></label><button class="btn btn-primary" data-act="xlsx-att">' + (one ? 'تقرير ' + esc(firstName(one.e.name)) + ' (Excel)' : 'تنزيل التقرير (Excel)') + '</button></div>');
+    const grid = (s) => stats([['أيام عمل', s.work == null ? '—' : int(s.work)], ['حضور', int(s.present), 'ok'], ['غياب', int(s.absent), s.absent ? 'bad' : ''], ['إجازة', int(s.leave)], ['مرات التأخير', int(s.lateCount), s.lateCount ? 'warn' : ''], ['التأخير', hm(s.lateMin)], ['خروج مبكر', hm(s.earlyMin)], ['إضافي عادي', hm(s.ot)], ['إضافي عطلة', hm(s.otOff)], ['بصمات ناقصة', int(s.missing), s.missing ? 'warn' : '']]);
+    if (one) {
+      const days = one.s.rows.filter((r) => r.status !== 'na');
+      out += '<div class="banner"><b>' + esc(one.e.name) + '</b><button class="btn btn-sm" data-act="att-emp" data-v="" style="margin-inline-start:auto">' + ic('back') + 'كل الموظفين</button></div>' + grid(one.s);
+      return out + recs(days.map((r) => {
+        const off = r.status === 'off' || r.status === 'holiday';
+        return rec({ tone: off ? 'off' : r.status === 'absent' ? 'bad' : r.late ? 'warn' : '', title: esc(F.day.format(dateObj(r.date))),
+          sub: (r.in ? '<span class="num">' + t12(r.in) + ' – ' + (r.out ? t12(r.out) : '…') + '</span>' : '') + (r.late ? ' · تأخير ' + hm(r.late) : '') + (r.ot + r.otOff ? ' · إضافي ' + hm(r.ot + r.otOff) : '') + (r.note ? (r.in ? ' · ' : '') + esc(r.note) : ''),
+          end: chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : ''), act: r.status === 'future' ? '' : 'data-act="att-edit" data-emp="' + esc(one.e.id) + '" data-date="' + r.date + '"' });
+      }));
+    }
+    out += recs(sums.map(({ e, s }) => rec({
+      k: 'am:' + e.id, av: e.name, title: esc(shortName(e.name)), sub: 'حضور ' + int(s.present) + ' من ' + int(s.work) + ' يوم' + (s.leave ? ' · إجازة ' + int(s.leave) : ''),
+      end: s.absent ? '<b class="num due-bad">' + int(s.absent) + '</b><small>غياب</small>' : s.lateCount ? '<b class="num due-warn">' + int(s.lateCount) + '</b><small>تأخير</small>' : '',
+      more: grid(s) + '<div class="rec-a"><button class="btn btn-primary" data-act="att-emp" data-v="' + esc(e.id) + '">عرض الحضور يوماً بيوم</button></div>',
+    })));
+    return out + sect('am:total', 'مجموع الموظفين', grid(tot));
+  }
+  const impMapP = (groups) => recs(groups.map((g) => rec({ title: 'رقم البصمة <span class="num">' + esc(g.fp) + '</span>' + (g.name ? ' — ' + esc(g.name) : ''), sub: '<span class="num">' + int(g.n) + '</span> حركة · ' + dShort(g.from) + ' – ' + dShort(g.to),
+    body: '<select id="imp-map-' + esc(g.fp) + '" data-ch="imp-map" data-fp="' + esc(g.fp) + '" aria-label="الموظف في النظام"><option value="">— تجاهل هذا الرقم —</option>' + activeEmps().map((e) => '<option value="' + esc(e.id) + '"' + (UI.impMap[g.fp] === e.id ? ' selected' : '') + '>' + esc(e.name) + '</option>').join('') + '</select>' })));
+  function leavesP(y, years, list, tools) {
+    const c = ctx(), t = todayStr();
+    let out = head('الإجازات', '', '<button class="btn btn-primary" data-act="leave-new">' + ic('plus') + 'تسجيل إجازة</button>');
+    const bal = recs(activeEmps().map((e) => { const b = leaveBalance(c, e, y, t); return rec({
+      k: 'lb:' + e.id, av: e.name, title: esc(shortName(e.name)), sub: 'السنوية ' + int(b.perYear) + ' يوماً في السنة',
+      end: '<b class="num' + (b.left < 0 ? ' due-bad' : '') + '">' + fnum(b.left) + '</b><small>الرصيد الحالي</small>',
+      more: stats([[b.mode === 'open' ? 'المدوّر في ' + dShort(b.open) : 'الرصيد المدوّر', b.mode === 'open' || b.base ? fnum(b.base) : '—'], [b.mode === 'open' ? 'المكتسب بعده' : 'مكتسب ' + esc(y), fnum(b.earned)], ['المأخوذ', fnum(b.annual)], ['مرضية', int(b.sick) + ' / ' + int(S.settings.sick_leave)], ['طارئة', int(b.emergency)], ['بدون راتب', int(b.unpaid)]]),
+    }); }));
+    out += sect('lv:bal', 'أرصدة الإجازات', '<label class="field" style="max-width:9rem;margin-bottom:.6rem"><span>السنة</span><select id="leave-year" data-ch="leave-year">' + years.map((x) => '<option' + (x === y ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label>' + bal + '<p class="note" style="margin-top:.6rem">الرصيد الحالي = المدوّر + ما يُكتسب بنهاية كل شهر − السنوية المعتمدة بعده.</p>', { open: true, flush: true });
+    const cards = list.length ? recs(list.map((l) => rec({
+      k: 'lv:' + l.id, av: empName(l.employee_id), title: esc(shortName(empName(l.employee_id))),
+      sub: esc(LEAVE_T[l.type] || l.type) + ' · ' + dShort(l.start) + ' – ' + dShort(l.end) + ' · <span class="num">' + int(l.days) + '</span> يوم', end: chip(LEAVE_S[l.status] || ['—', '']),
+      more: (l.note ? '<p class="note">' + esc(l.note) + '</p>' : '') + '<div class="rec-a">' + (l.status !== 'approved' ? '<button class="btn btn-primary" data-act="leave-set" data-id="' + esc(l.id) + '" data-v="approved">موافقة</button>' : '') + (l.status === 'pending' ? '<button class="btn btn-danger" data-act="leave-set" data-id="' + esc(l.id) + '" data-v="rejected">رفض</button>' : '') + '<button class="btn" data-act="leave-print" data-id="' + esc(l.id) + '">طباعة</button><button class="btn" data-act="leave-edit" data-id="' + esc(l.id) + '">تعديل</button></div>',
+    }))) : empty('لا توجد إجازات مسجلة', 'سجّل أي إجازة من زر «تسجيل إجازة». الإجازات المعتمدة لا تُحسب غياباً.');
+    return out + card('سجل الإجازات', tools) + cards;
+  }
+  function payrollP(ym, p, locked, rows, sum, zero, cost, how) {
+    let out = head('الرواتب', '', (locked ? '<button class="btn" data-act="pay-unlock">إلغاء الاعتماد</button>' : '<button class="btn btn-primary" data-act="pay-lock">اعتماد رواتب الشهر</button>') + '<button class="btn" data-act="slips-all">كشوف للطباعة</button><button class="btn" data-act="xlsx-pay">Excel</button>');
+    out += card('', '<div class="toolbar"><label class="field"><span>الشهر</span><input type="month" id="pay-month" data-ch="pay-month" value="' + ym + '"></label><div>' + (locked ? chip(['معتمد ومقفل', 'ok']) : chip(['مسودة — تتحدث مع الحضور', 'warn'])) + '</div></div>' + (zero ? '<div class="banner gold" style="margin-top:.8rem">بعض الموظفين بدون راتب أساسي. أدخل الرواتب من صفحة الموظفين.</div>' : ''));
+    out += stats([['الإجمالي', money(sum('gross'))], ['الاقتطاعات', money(sum('ded'))], ['الصافي', money(sum('net')), 'gold']]);
+    out += recs(rows.map((r) => rec({ av: r.name, title: esc(shortName(r.name)), sub: 'الإجمالي <span class="num">' + money(r.gross) + '</span> · الاقتطاعات <span class="num">' + money(r.ded) + '</span>',
+      end: '<b class="num" style="color:var(--gold-ink)">' + money(r.net) + '</b><small>الصافي</small>', act: 'data-act="pay-slip" data-v="' + esc(r.emp_id) + '"' })));
+    return out + '<p class="note">اضغط على موظف لفتح كشف راتبه وإدخال المكافأة والسلف.</p>' + sect('pay:cost', 'تكلفة الشهر على الشركة', cost) + sect('pay:how', 'كيف يُحسب', how);
+  }
+  function clientsP(all, list, t, tools) {
+    const n = (f) => all.filter(f).length, q = UI.clientQ.trim();
+    let out = head('العملاء', '', '<button class="btn btn-primary" data-act="client-new">' + ic('plus') + 'عميل جديد</button><button class="btn" data-act="xlsx-clients">Excel</button>');
+    if (!all.length) return out + card('', empty('لا يوجد عملاء بعد', 'أضف عملاء المكتب لتربط بهم المهام ومواعيد الإقرارات.'));
+    out += stats([['كل العملاء', int(all.length)], ['شركات', int(n((c) => c.kind === 'company'))], ['مؤسسات فردية', int(n((c) => c.kind === 'est'))], ['الدورة الزوجية', int(n((c) => c.gst_cycle === 'even')), 'info'], ['الدورة الفردية', int(n((c) => c.gst_cycle === 'odd')), 'gold'], ['يظهر الآن', int(list.length)]]);
+    const active = [UI.clientEmp, UI.clientCycle, UI.clientKind].filter(Boolean).length;
+    out += card('', '<label class="field"><span>بحث</span><input type="search" id="client-q" data-in="client-q" value="' + esc(UI.clientQ) + '" placeholder="اسم العميل أو الرقم الضريبي"></label><div style="margin-top:.6rem">' + fold('cl:f', 'تصفية' + (active ? ' <b class="num">(' + active + ')</b>' : ''), tools, !!active) + '</div>');
+    if (!list.length) return out + card('', empty('لا يوجد عملاء مطابقون', 'غيّر البحث أو عوامل التصفية.'));
+    const groups = clientGroups(list);
+    for (const g of groups) {
+      out += sect('cg:' + (g.e ? g.e.id : 'none') + (q ? ':q' : ''), (g.e ? esc(shortName(g.e.name)) : 'بدون مسؤول') + ' <span class="chip plain num">' + int(g.rows.length) + '</span>', recs(g.rows.map((c) => {
+        const open = S.tasks.filter((x) => x.client_id === c.id && x.status !== 'done'), late = open.filter((x) => x.due && x.due < t).length;
+        return rec({
+          k: 'cl:' + c.id, title: esc(c.name), sub: [c.tax_no ? 'الرقم الضريبي <span class="num">' + esc(c.tax_no) + '</span>' : '', esc(CLIENT_K[c.kind] || '')].filter(Boolean).join(' · '),
+          chips: (GST[c.gst_cycle] ? chip(['دورة ' + GST[c.gst_cycle][0], GST[c.gst_cycle][1]]) : '') + (open.length ? chip([int(open.length) + ' مهام مفتوحة' + (late ? ' · ' + late + ' متأخرة' : ''), late ? 'bad' : '']) : ''),
+          more: kv([c.directorate ? ['مديرية المكلف', esc(c.directorate)] : null, c.doc_status ? ['حالة الإقرار', esc(c.doc_status)] : null, c.contact ? ['المسؤول لدى العميل', esc(c.contact)] : null, c.phone ? ['الهاتف', '<bdi class="num">' + esc(c.phone) + '</bdi>'] : null, c.notes ? ['ملاحظات', esc(c.notes)] : null]) +
+            '<div class="rec-a"><button class="btn btn-primary" data-act="task-new" data-client="' + esc(c.id) + '">' + ic('plus') + 'مهمة</button><button class="btn" data-act="client-tasks" data-id="' + esc(c.id) + '">المهام</button><button class="btn" data-act="client-edit" data-id="' + esc(c.id) + '">تعديل</button></div>',
+        });
+      })), { open: !!q || groups.length === 1, flush: true });
+    }
+    return out;
+  }
+  function employeesP(list, t, missingFp, missingSal) {
+    let out = head('الموظفون', '', '<button class="btn btn-primary" data-act="emp-new">' + ic('plus') + 'إضافة موظف</button>');
+    if (missingFp || missingSal) out += '<div class="banner gold">' + (missingFp ? '<span>' + int(missingFp) + ' موظف بدون رقم بصمة.</span>' : '') + (missingSal ? '<span>' + int(missingSal) + ' موظف بدون راتب أساسي.</span>' : '') + '</div>';
+    out += recs(list.map((e) => { const wa = waNumber(e.phone); return rec({
+      k: 'emp:' + e.id, av: e.name, title: esc(e.name), sub: esc(e.title || '—'), end: empState(e, t),
+      more: stats([['الراتب الأساسي', Number(e.basic_salary) ? money(e.basic_salary) : '—', Number(e.basic_salary) ? '' : 'warn'], ['العلاوات', money(e.allowances)], ['الضمان', e.ssc === false ? 'غير مشترك' : 'مشترك'], ['رقم البصمة', esc(e.fp_id || '—'), e.fp_id || e.track === false ? '' : 'warn'], ['سنوات الخدمة', e.hire_date ? yearsOfService(e, t).toFixed(1) : '—'], ['تاريخ التعيين', dShort(e.hire_date)]]) +
+        kv([['الهاتف', e.phone ? '<bdi class="num">' + esc(e.phone) + '</bdi>' : '<span class="due-warn">بدون رقم — لا يصله واتساب المهام</span>']]) +
+        '<div class="rec-a"><button class="btn btn-primary" data-act="emp-edit" data-id="' + esc(e.id) + '">تعديل</button>' + (wa ? '<a class="btn btn-wa" href="https://wa.me/' + wa + '" target="_blank" rel="noopener">' + ic('wa') + 'واتساب</a>' : '') + '</div>',
+    }); }));
+    return out + '<label class="check"><input type="checkbox" id="emp-inactive" data-ch="emp-inactive"' + (UI.empShowInactive ? ' checked' : '') + '> إظهار الموظفين غير الفعّالين</label>';
+  }
+  const schedP = (s) => '<div class="sched-row note"><span>اليوم</span><span>بداية الدوام</span><span>نهاية الدوام</span></div>' + WEEK.map((d) => '<div class="sched-row"><label class="check"><input type="checkbox" name="on_' + d + '"' + (s.schedule[d].on ? ' checked' : '') + '> ' + DAYNAME[d] + '</label><input type="time" name="start_' + d + '" value="' + esc(s.schedule[d].start) + '" aria-label="بداية دوام ' + DAYNAME[d] + '"><input type="time" name="end_' + d + '" value="' + esc(s.schedule[d].end) + '" aria-label="نهاية دوام ' + DAYNAME[d] + '"></div>').join('');
+
   /* ---------- modal & toast ---------- */
   const modalRoot = document.getElementById('modal-root');
   let modalState = null;
-  function openModal({ title, body, submit, onSubmit, danger, wide, footLeft }) {
+  function openModal({ title, body, submit, onSubmit, danger, wide, footLeft, cancel }) {
     modalState = { onSubmit };
     modalRoot.innerHTML = '<div class="overlay" data-act="modal-bg"><div class="modal' + (wide ? ' wide' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><form id="mform" novalidate><div class="modal-h"><h3>' + title + '</h3><button type="button" class="btn btn-ghost" data-act="modal-close" aria-label="إغلاق">✕</button></div><div class="modal-b">' + body + '<p class="err" id="merr" hidden></p></div>' +
-      '<div class="modal-f">' + (footLeft || '') + '<div class="actions"><button type="button" class="btn" data-act="modal-close">إلغاء</button>' + (submit ? '<button type="submit" class="btn ' + (danger ? 'btn-danger' : 'btn-primary') + '" id="msubmit">' + submit + '</button>' : '') + '</div></div></form></div></div>';
+      '<div class="modal-f">' + (footLeft || '') + '<div class="actions"><button type="button" class="btn" data-act="modal-close">' + esc(cancel || 'إلغاء') + '</button>' + (submit ? '<button type="submit" class="btn ' + (danger ? 'btn-danger' : 'btn-primary') + '" id="msubmit">' + submit + '</button>' : '') + '</div></div></form></div></div>';
     const first = modalRoot.querySelector('input:not([type=hidden]),select,textarea');
-    if (first) first.focus();
+    if (first && !isPhone()) first.focus(); // on a phone the keyboard would cover half the sheet
   }
-  function closeModal() { modalRoot.innerHTML = ''; modalState = null; }
+  function closeModal() { voiceStop(); modalRoot.innerHTML = ''; modalState = null; }
   function modalError(msg) { const e = document.getElementById('merr'); if (e) { e.textContent = msg; e.hidden = false; } }
   modalRoot.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -1086,12 +1827,25 @@ function parsePunchRows(rows, preferOrder) {
     finally { if (btn) btn.disabled = false; }
   });
   modalRoot.addEventListener('click', (ev) => {
+    const o = ev.target.closest('.cpick-opt, .cpick-x');
+    if (o) o.closest('.cpick').querySelector('input[type=hidden]').dataset.touched = '1';
+    if (ev.target.closest('a.app-tile')) { setTimeout(closeModal, 0); return; } // «المزيد»: the link changes the page
     const t = ev.target.closest('[data-act]');
     if (!t) return;
     if (t.dataset.act === 'modal-bg' && ev.target !== t) return;
     if (t.dataset.act === 'modal-close' || t.dataset.act === 'modal-bg') return closeModal();
     if (ACT[t.dataset.act]) ACT[t.dataset.act](t, ev);
   });
+  /* A field the person changed by hand is not overwritten by the voice parser; the two text boxes feed it and the WhatsApp link. */
+  const touched = (ev) => {
+    const el = ev.target;
+    if (el.type === 'hidden' || !el.closest('#mform')) return;
+    if (el.id === 'voice-text') return voiceApply();
+    if (el.id === 'wa-text') { const a = document.getElementById('wa-go'); if (a) a.href = waLink(el.dataset.num, el.value); return; }
+    if (el.classList.contains('cpick-q')) el.closest('.cpick').querySelector('input[type=hidden]').dataset.touched = '1'; else if (el.name) el.dataset.touched = '1';
+  };
+  modalRoot.addEventListener('input', touched);
+  modalRoot.addEventListener('change', touched);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalState) closeModal(); });
 
   /* ---------- client picker behaviour */
@@ -1197,7 +1951,7 @@ function parsePunchRows(rows, preferOrder) {
       body: '<p class="note" style="margin:0">' + esc(F.full.format(dateObj(date))) + ' · ' + chip(ST[r.status] || ['—', '']) + '</p>' +
         (punches.length ? '<p class="note" style="margin:0">بصمات الجهاز: <span class="num">' + punches.map(t12).join(' · ') + '</span></p>' : '<p class="note" style="margin:0">لا توجد بصمات من الجهاز لهذا اليوم. يمكنك إدخال الدخول والخروج يدوياً.</p>') +
         '<div class="form-grid"><label class="field"><span>وقت الدخول</span><input type="time" name="in" value="' + esc((man && man.in) || first) + '"></label><label class="field"><span>وقت الخروج</span><input type="time" name="out" value="' + esc((man && man.out) || last) + '"></label>' +
-        '<label class="field"><span>نوع اليوم</span><select name="mark">' + (r.fieldStanding || (man && man.mark === 'office') ? '<option value="">عمل خارجي دائم (حسب ملف الموظف)</option><option value="office"' + (man && man.mark === 'office' ? ' selected' : '') + '>بالمكتب — حسب البصمة</option>' : '<option value="">حسب البصمة</option><option value="field"' + (man && man.mark === 'field' ? ' selected' : '') + '>عمل خارجي (عند عميل أو دائرة حكومية)</option>') + '</select></label>' +
+        '<label class="field wide-p"><span>نوع اليوم</span><select name="mark">' + (r.fieldStanding || (man && man.mark === 'office') ? '<option value="">عمل خارجي دائم (حسب ملف الموظف)</option><option value="office"' + (man && man.mark === 'office' ? ' selected' : '') + '>بالمكتب — حسب البصمة</option>' : '<option value="">حسب البصمة</option><option value="field"' + (man && man.mark === 'field' ? ' selected' : '') + '>عمل خارجي (عند عميل أو دائرة حكومية)</option>') + '</select></label>' +
         '<label class="field full"><span>ملاحظة</span><input type="text" name="note" value="' + esc((man && man.note) || '') + '" placeholder="مثل: نسي البصمة، مراجعة دائرة الضريبة"></label></div>',
       submit: 'حفظ',
       footLeft: man ? '<button type="button" class="btn btn-danger" data-act="att-clear" data-emp="' + esc(empId) + '" data-date="' + date + '">إلغاء التعديل اليدوي</button>' : '',
@@ -1244,8 +1998,8 @@ function parsePunchRows(rows, preferOrder) {
     const isNew = !e; e = e || { active: true, ssc: true, track: true };
     openModal({
       title: isNew ? 'إضافة موظف' : 'تعديل ' + esc(e.name), wide: true,
-      body: '<div class="form-grid"><label class="field"><span>الاسم الكامل</span><input type="text" name="name" value="' + esc(e.name || '') + '" required></label><label class="field"><span>المسمى الوظيفي</span><input type="text" name="title" value="' + esc(e.title || '') + '" placeholder="مثل: محاسب، مدقق ضريبي"></label>' +
-        '<label class="field"><span>رقم البصمة على الجهاز <small>(أكثر من رقم: افصل بفاصلة)</small></span><input type="text" name="fp_id" dir="ltr" value="' + esc(e.fp_id || '') + '"></label><label class="field"><span>تاريخ التعيين</span><input type="date" name="hire_date" value="' + esc(e.hire_date || '') + '"></label>' +
+      body: '<div class="form-grid"><label class="field wide-p"><span>الاسم الكامل</span><input type="text" name="name" value="' + esc(e.name || '') + '" required></label><label class="field wide-p"><span>المسمى الوظيفي</span><input type="text" name="title" value="' + esc(e.title || '') + '" placeholder="مثل: محاسب، مدقق ضريبي"></label>' +
+        '<label class="field wide-p"><span>رقم البصمة على الجهاز <small>(أكثر من رقم: افصل بفاصلة)</small></span><input type="text" name="fp_id" dir="ltr" value="' + esc(e.fp_id || '') + '"></label><label class="field"><span>تاريخ التعيين</span><input type="date" name="hire_date" value="' + esc(e.hire_date || '') + '"></label>' +
         '<label class="field"><span>الراتب الأساسي (دينار)</span><input type="number" name="basic_salary" step="0.001" min="0" value="' + esc(e.basic_salary || '') + '"></label><label class="field"><span>العلاوات الثابتة (دينار)</span><input type="number" name="allowances" step="0.001" min="0" value="' + esc(e.allowances || '') + '"></label>' +
         '<label class="field"><span>الإجازة السنوية (يوم/سنة)</span><input type="number" name="annual_days" min="0" step="1" value="' + esc(e.annual_days || '') + '" placeholder="تلقائي: ' + int(S.settings.annual_leave) + ' أو ' + int(S.settings.annual_leave_senior) + '"></label>' +
         '<label class="field"><span>الرصيد المدوّر (يوم)</span><input type="number" name="leave_open_balance" step="0.5" value="' + esc(e.leave_open_date ? (e.leave_open_balance ?? '') : '') + '"></label><label class="field"><span>الرصيد المدوّر كما في تاريخ</span><input type="date" name="leave_open_date" value="' + esc(e.leave_open_date || '') + '"></label>' +
@@ -1274,12 +2028,12 @@ function parsePunchRows(rows, preferOrder) {
     const isNew = !c; c = c || { kind: 'company' };
     openModal({
       title: isNew ? 'عميل جديد' : 'تعديل ' + esc(c.name), wide: true,
-      body: '<div class="form-grid"><label class="field"><span>اسم العميل</span><input type="text" name="name" value="' + esc(c.name || '') + '" required></label><label class="field"><span>النوع</span><select name="kind">' + opts(CLIENT_K, c.kind) + '</select></label>' +
+      body: '<div class="form-grid"><label class="field wide-p"><span>اسم العميل</span><input type="text" name="name" value="' + esc(c.name || '') + '" required></label><label class="field"><span>النوع</span><select name="kind">' + opts(CLIENT_K, c.kind) + '</select></label>' +
         '<label class="field"><span>الرقم الضريبي</span><input type="text" name="tax_no" inputmode="numeric" value="' + esc(c.tax_no || '') + '"></label><label class="field"><span>المحاسب المسؤول</span><select name="employee_id">' + empOpts(c.employee_id, '— غير محدد —') + '</select></label>' +
-        '<label class="field"><span>الشخص المسؤول لدى العميل</span><input type="text" name="contact" value="' + esc(c.contact || '') + '"></label><label class="field"><span>الهاتف</span><input type="tel" name="phone" value="' + esc(c.phone || '') + '"></label>' +
-        '<label class="field"><span>البريد الإلكتروني</span><input type="email" name="email" value="' + esc(c.email || '') + '"></label><label class="field"><span>الأتعاب الشهرية (دينار)</span><input type="number" name="fee" step="0.001" min="0" value="' + esc(c.fee || '') + '"></label>' +
-        '<label class="field"><span>دورة إقرار المبيعات</span><select name="gst_cycle"><option value="">غير مسجّل بالمبيعات</option><option value="even"' + (c.gst_cycle === 'even' ? ' selected' : '') + '>زوجية (1–2، 3–4 …)</option><option value="odd"' + (c.gst_cycle === 'odd' ? ' selected' : '') + '>فردية (12–1، 2–3 …)</option></select></label>' +
-        '<label class="field"><span>مديرية المكلف</span><input type="text" name="directorate" value="' + esc(c.directorate || '') + '" placeholder="مثل: جنوب عمان، ت2، كبار المكلفين"></label>' +
+        '<label class="field wide-p"><span>الشخص المسؤول لدى العميل</span><input type="text" name="contact" value="' + esc(c.contact || '') + '"></label><label class="field"><span>الهاتف</span><input type="tel" name="phone" value="' + esc(c.phone || '') + '"></label>' +
+        '<label class="field wide-p"><span>البريد الإلكتروني</span><input type="email" name="email" value="' + esc(c.email || '') + '"></label><label class="field"><span>الأتعاب الشهرية (دينار)</span><input type="number" name="fee" step="0.001" min="0" value="' + esc(c.fee || '') + '"></label>' +
+        '<label class="field wide-p"><span>دورة إقرار المبيعات</span><select name="gst_cycle"><option value="">غير مسجّل بالمبيعات</option><option value="even"' + (c.gst_cycle === 'even' ? ' selected' : '') + '>زوجية (1–2، 3–4 …)</option><option value="odd"' + (c.gst_cycle === 'odd' ? ' selected' : '') + '>فردية (12–1، 2–3 …)</option></select></label>' +
+        '<label class="field wide-p"><span>مديرية المكلف</span><input type="text" name="directorate" value="' + esc(c.directorate || '') + '" placeholder="مثل: جنوب عمان، ت2، كبار المكلفين"></label>' +
         '<label class="field full"><span>حالة الإقرار</span><input type="text" name="doc_status" value="' + esc(c.doc_status || '') + '" placeholder="مثل: فواتير (السوق المركزي)، زيارة، إرسال"></label>' +
         '<label class="field full"><span>ملاحظات</span><textarea name="notes" placeholder="مثل: إحضار الفواتير من المحاسب، تاريخ التسجيل">' + esc(c.notes || '') + '</textarea></label></div>',
       submit: 'حفظ',
@@ -1293,27 +2047,41 @@ function parsePunchRows(rows, preferOrder) {
       },
     });
   }
-  function taskForm(x, preset) {
+  /* «2023 و2024», «2021-2024», «٢٠٢٣» → «2023، 2024»; anything without a year is kept as typed */
+  const normYears = (v) => {
+    const s = latinDigits(v).trim(), ys = [];
+    s.replace(/((?:19|20)\d\d)\s*[-–]\s*((?:19|20)\d\d)|((?:19|20)\d\d)/g, (m, a, b, c) => { if (c) ys.push(+c); else for (let y = +a; y <= +b && y < +a + 20; y++) ys.push(y); return m; });
+    return ys.length ? [...new Set(ys)].sort((p, q) => p - q).join('، ') : s;
+  };
+  function taskForm(x, preset, byVoice) {
     const isNew = !x; x = x || Object.assign({ status: 'new', priority: 'normal', recur: 'none', due: addDays(todayStr(), 7), category: TASK_C[0] }, preset || {});
+    const cats = !x.category || TASK_C.includes(x.category) ? TASK_C : TASK_C.concat([x.category]);
+    const voiceBox = isNew ? '<div class="voice"><button type="button" class="mic" id="voice-mic" data-act="voice-toggle" aria-pressed="false" aria-label="تسجيل صوتي">' + ic('mic') + '</button><div class="voice-t"><b id="voice-state" role="status">اضغط الميكروفون وقل المهمة</b><small>مثال: «إقرار ضريبة الدخل لشركة النور عن 2023 و2024، المسؤول ' + esc(firstName((activeEmps()[1] || activeEmps()[0] || {}).name) || 'أحمد') + '، يوم الأحد الساعة عشرة، مستعجل»</small></div>' +
+      '<textarea id="voice-text" rows="2" placeholder="يظهر كلامك هنا، ويمكنك كتابته أو تعديله" aria-label="نص المهمة المحكية"></textarea><div class="voice-sum" id="voice-sum"></div></div>' : '';
     openModal({
-      title: isNew ? 'مهمة جديدة' : 'تعديل مهمة', wide: true,
-      body: '<div class="form-grid"><label class="field full"><span>المهمة</span><input type="text" name="title" value="' + esc(x.title || '') + '" required placeholder="مثل: إقرار ضريبة المبيعات لشهري 9–10"></label>' +
-        clientPicker({ attrs: 'name="client_id"', qid: 'task-client-f', value: x.client_id, none: 'داخلي / بدون عميل' }) +
+      title: isNew ? (byVoice ? 'مهمة صوتية' : 'مهمة جديدة') : 'تعديل مهمة', wide: true,
+      body: voiceBox + '<div class="form-grid"><label class="field full"><span>المهمة</span><input type="text" name="title" value="' + esc(x.title || '') + '" required placeholder="مثل: إقرار ضريبة المبيعات لشهري 9–10"></label>' +
+        clientPicker({ attrs: 'name="client_id"', qid: 'task-client-f', value: x.client_id, none: 'داخلي / بدون عميل' }) + '<div class="voice-sum" id="voice-alt"></div>' +
         '<label class="field"><span>المسؤول</span><select name="employee_id">' + empOpts(x.employee_id, '— اختر —') + '</select></label>' +
-        '<label class="field"><span>التصنيف</span><select name="category">' + TASK_C.map((k) => '<option' + (k === x.category ? ' selected' : '') + '>' + esc(k) + '</option>').join('') + '</select></label>' +
+        '<label class="field"><span>التصنيف</span><select name="category">' + cats.map((k) => '<option' + (k === x.category ? ' selected' : '') + '>' + esc(k) + '</option>').join('') + '</select></label>' +
         '<label class="field"><span>تاريخ الاستحقاق</span><input type="date" name="due" value="' + esc(x.due || '') + '"></label>' +
-        '<label class="field"><span>الأولوية</span><select name="priority">' + opts(TASK_P, x.priority) + '</select></label><label class="field"><span>الحالة</span><select name="status">' + opts(TASK_S, x.status) + '</select></label>' +
+        '<label class="field"><span>الوقت <small>(اختياري)</small></span><input type="time" name="time" value="' + esc(x.time || '') + '"></label>' +
+        '<label class="field"><span>السنوات المطلوبة</span><input type="text" name="years" value="' + esc(x.years || '') + '" placeholder="مثل: 2023، 2024"></label>' +
+        '<label class="field"><span>الأولوية</span><select name="priority">' + opts(TASK_P, x.priority || 'normal') + '</select></label><label class="field"><span>الحالة</span><select name="status">' + opts(TASK_S, x.status) + '</select></label>' +
         '<label class="field"><span>التكرار</span><select name="recur">' + opts(RECUR, x.recur || 'none') + '</select></label>' +
-        '<label class="field full"><span>ملاحظات</span><textarea name="notes">' + esc(x.notes || '') + '</textarea></label></div>',
+        '<label class="field full"><span>ملاحظات</span><textarea name="notes">' + esc(x.notes || '') + '</textarea></label>' +
+        '<div class="field full"><label class="check"><input type="checkbox" name="wa"' + (isNew ? ' checked' : '') + '> ' + (isNew ? 'إرسال إشعار واتساب للمسؤول بعد الحفظ' : 'إرسال إشعار واتساب بالتعديل بعد الحفظ') + '</label></div></div>',
       submit: 'حفظ',
       footLeft: isNew ? '' : '<button type="button" class="btn btn-danger" data-act="task-del" data-id="' + esc(x.id) + '">حذف المهمة</button>',
       onSubmit: async (v) => {
         req(v.title, 'أدخل عنوان المهمة.');
         const id = isNew ? newId('tk-') : x.id;
-        const doc = { title: v.title, client_id: v.client_id || '', employee_id: v.employee_id || '', category: v.category, due: v.due || '', priority: v.priority, status: v.status, recur: v.recur, notes: v.notes || '', created: x.created || new Date().toISOString(), done_at: v.status === 'done' ? x.done_at || new Date().toISOString() : '' };
+        const doc = { title: v.title, client_id: v.client_id || '', employee_id: v.employee_id || '', category: v.category, due: v.due || '', time: v.due ? v.time || '' : '', years: normYears(v.years), priority: v.priority, status: v.status, recur: v.recur, notes: v.notes || '',
+          created: x.created || new Date().toISOString(), done_at: v.status === 'done' ? x.done_at || new Date().toISOString() : '', wa_at: x.wa_at || '' };
         await put('tasks/' + id, doc);
         if (v.status === 'done' && x.status !== 'done') await spawnNext({ id, ...doc });
         toast('حُفظت المهمة');
+        if (v.wa && doc.employee_id) setTimeout(() => waSheet(id), 250);
       },
     });
   }
@@ -1323,7 +2091,7 @@ function parsePunchRows(rows, preferOrder) {
     const nextDue = addMonthsDate(x.due, k);
     if (S.tasks.some((y) => y.title === x.title && y.client_id === x.client_id && y.due === nextDue)) return;
     const { id, ...rest } = x;
-    await put('tasks/' + newId('tk-'), { ...rest, due: nextDue, status: 'new', done_at: '', created: new Date().toISOString() });
+    await put('tasks/' + newId('tk-'), { ...rest, due: nextDue, status: 'new', done_at: '', wa_at: '', created: new Date().toISOString() });
     toast('أُنشئ الموعد التالي: ' + dDate(nextDue));
   }
   function slipHtml(r, ym) {
@@ -1774,7 +2542,18 @@ function parsePunchRows(rows, preferOrder) {
     'client-edit': (el) => clientForm(clientById(el.dataset.id)),
     'client-tasks': (el) => { UI.taskClient = el.dataset.id; UI.taskStatus = 'open'; location.hash = 'tasks'; },
     'client-del': (el) => confirmBox('حذف العميل', 'سيُحذف ملف العميل. المهام المرتبطة به تبقى بدون عميل.', 'حذف', async () => { await del('clients/' + el.dataset.id); toast('حُذف العميل'); }),
-    'task-new': () => taskForm(null, UI.taskClient ? { client_id: UI.taskClient } : null),
+    'task-new': (el) => { const c = (el && el.dataset.client) || UI.taskClient; taskForm(null, c ? { client_id: c } : null); },
+    'task-voice': () => { taskForm(null, UI.taskClient ? { client_id: UI.taskClient } : null, true); voiceStart(); },
+    'voice-toggle': () => { if (voice.on && voice.rec) { try { voice.rec.stop(); } catch (e) { voiceStop(); voiceState(null, false); } } else voiceStart(); },
+    'voice-client': (el) => { const hid = document.querySelector('#mform [name=client_id]'); if (!hid) return; hid.dataset.touched = '1'; cpPick(hid.closest('.cpick'), el.dataset.v); voiceApply(); },
+    'task-set': (el) => taskSet(el.dataset.id, el.dataset.f, el.dataset.v),
+    'task-f': (el) => { UI.taskStatus = el.dataset.v; render(); },
+    'task-wa': (el) => waSheet(el.dataset.id),
+    'wa-go': (el) => { // the link itself opens WhatsApp; note on the task that the notice went out
+      const id = el.dataset.id;
+      setTimeout(async () => { closeModal(); const x = S.tasks.find((y) => y.id === id); if (!x) return; const { id: _id, ...rest } = x; try { await put('tasks/' + id, { ...rest, wa_at: new Date().toISOString() }); } catch (e) { /* the message is on its way regardless */ } }, 400);
+    },
+    'more': () => moreSheet(),
     'task-edit': (el) => taskForm(S.tasks.find((x) => x.id === el.dataset.id)),
     'task-del': (el) => confirmBox('حذف المهمة', 'ستُحذف المهمة نهائياً.', 'حذف', async () => { await del('tasks/' + el.dataset.id); toast('حُذفت المهمة'); }),
     'pay-slip': (el) => slipForm(el.dataset.v),
@@ -1828,11 +2607,8 @@ function parsePunchRows(rows, preferOrder) {
     'task-status': (el) => { UI.taskStatus = el.value; render(); },
     'task-emp': (el) => { UI.taskEmp = el.value; render(); },
     'task-client': (el) => { UI.taskClient = el.value; render(); },
-    'task-st': async (el) => {
-      const x = S.tasks.find((y) => y.id === el.dataset.id); if (!x) return;
-      const { id, ...rest } = x; const v = el.value;
-      try { await put('tasks/' + id, { ...rest, status: v, done_at: v === 'done' ? new Date().toISOString() : '' }); if (v === 'done' && x.status !== 'done') await spawnNext({ ...x, status: v }); toast('تحدّثت حالة المهمة'); } catch (e) { toast(dbMsg(e), true); }
-    },
+    'task-st': (el) => taskSet(el.dataset.id, 'status', el.value),
+    'task-pr': (el) => taskSet(el.dataset.id, 'priority', el.value),
     'client-emp': (el) => { UI.clientEmp = el.value; render(); },
     'client-cycle': (el) => { UI.clientCycle = el.value; render(); },
     'client-kind': (el) => { UI.clientKind = el.value; render(); },
@@ -1849,6 +2625,10 @@ function parsePunchRows(rows, preferOrder) {
   viewEl.addEventListener('click', (ev) => { const t = ev.target.closest('[data-act]'); if (t && ACT[t.dataset.act]) { if (t.tagName === 'A') { /* let hash links work */ } ACT[t.dataset.act](t, ev); } });
   viewEl.addEventListener('change', (ev) => { const cf = ev.target.closest('#cfg-form'); if (cf) { UI.cfgDirty = true; saveCfg(cf); } const t = ev.target.closest('[data-ch]'); if (t && CH[t.dataset.ch]) CH[t.dataset.ch](t, ev); });
   viewEl.addEventListener('input', (ev) => { if (ev.target.closest('#cfg-form')) UI.cfgDirty = true; const t = ev.target.closest('[data-in]'); if (t && IN[t.dataset.in]) IN[t.dataset.in](t, ev); });
+  document.getElementById('tabbar').addEventListener('click', (ev) => { const t = ev.target.closest('[data-act]'); if (t && ACT[t.dataset.act]) ACT[t.dataset.act](t, ev); });
+  viewEl.addEventListener('toggle', (ev) => { const d = ev.target; if (d.dataset && d.dataset.k) UI.openK[d.dataset.k] = d.open; }, true);
+  viewEl.addEventListener('keydown', (ev) => { const el = ev.target; if ((ev.key === 'Enter' || ev.key === ' ') && el.getAttribute && el.getAttribute('role') === 'button') { ev.preventDefault(); el.click(); } });
+  if (PHONE.addEventListener) PHONE.addEventListener('change', () => render(true)); else if (PHONE.addListener) PHONE.addListener(() => render(true)); // older iPhones
   /* Settings save themselves on every change; the button is kept for reassurance. */
   let cfgSaving = Promise.resolve();
   function saveCfg(f, fromButton) {
@@ -1964,6 +2744,7 @@ function parsePunchRows(rows, preferOrder) {
     const h = location.hash.slice(1);
     UI.route = ROUTES[h] ? h : 'home';
     UI.cfgDirty = false;
+    closeModal();
     render(true);
     window.scrollTo(0, 0);
   }

@@ -33,6 +33,12 @@ The order follows `git log`:
 12. **Bridge:** one long connection; `quiet()` reconnects; back-off on failed connects; an offline queue; status reported to `public.bridge.status`.
 13. **Payslips in the print preview** (12 Nov, first Claude Code session, `APP_VERSION` 2026.11.12): «طباعة / PDF» in a payslip and «كشوف الموظفين للطباعة» open the same preview as the leave form instead of downloading an HTML file; all payslips print or save as one PDF, one page per employee. The same change fixed Arabic text in every saved PDF (words had run together, and «:» and brackets sat on the wrong side).
 
+14. **Phone interface, voice tasks, WhatsApp notices** (14 Nov, `APP_VERSION` 2026.11.14). The owner asked for a phone layout with no sideways scrolling and navigation by icons, for dictating tasks (task, employee, date, years), and for a WhatsApp notice to the employee in charge.
+    - Phone: icon tab bar at the bottom with the mic in the middle, home tiles with each section's numbers, cards instead of tables on every page, bottom-sheet dialogs. The desktop layout is unchanged apart from icons in the rail and the wider task list.
+    - Tasks: new fields `time` and `years`; status and priority change in one press from the card (or two selects on the desktop); the counters above the list are filters.
+    - Voice: speech becomes text in the browser, then `parseTaskSpeech()` fills the form for review. Not yet tried on the owner's own phone: ask how the recognition went, and whether his installed app (iPhone or Android) allows the microphone.
+    - WhatsApp: opens a ready message to the employee's number; the owner presses send. He was told that fully automatic sending needs the WhatsApp Business API and did not ask for it.
+
 ## Live system facts (12 Nov 2026)
 
 **Employees** (`emp-01` … `emp-08`):
@@ -47,6 +53,8 @@ Other device numbers:
 
 - emp-02 → 2, emp-03 → 3, emp-04 → 5, emp-05 → 7, emp-06 → 10, emp-07 → 4.
 - Device users 6, 8, 9, 12 and 13 are former staff whose fingerprints are still on the device. They are not mapped, by design.
+
+**Phones:** on 14 Nov the owner gave WhatsApp numbers for emp-02, emp-03, emp-04, emp-05, emp-06 and emp-08; they are in `employees.data.phone`. emp-01 and emp-07 have none (the app asks for the number the first time a notice goes to them).
 
 **Settings:**
 
