@@ -261,6 +261,7 @@ button.tile[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 
 .btn-wa { background: var(--ok); border-color: var(--ok); color: var(--sheet); font-weight: 600; }
 .btn-wa:hover { border-color: var(--ok); filter: brightness(1.06); }
 .btn .ic { width: 1.15em; height: 1.15em; }
+.assumed { font-style: normal; color: var(--muted); border-bottom: 1px dashed currentColor; }
 .card .rec { box-shadow: none; }
 .fold > summary { list-style: none; cursor: pointer; }
 .fold > summary::-webkit-details-marker { display: none; }
@@ -433,6 +434,7 @@ const DEFAULTS = {
   grace: 15, ot_min: 15, punch_gap: 10, ot_rate: 1.25, ot_rate_off: 1.5, day_divisor: 30, hour_divisor: 8,
   ssc_emp: 7.5, ssc_er: 14.25, ssc_cap: 3733, // 2026 cap set by the Social Security Corporation (yearly)
   ded_absence: true, ded_unpaid: true, ded_late: false,
+  fill_missing: true, // a missing punch on a working day takes the scheduled start or end (evalDay)
   annual_leave: 14, annual_leave_senior: 21, senior_years: 5, sick_leave: 14,
   holidays: [],
   print_preprinted: false, print_top_mm: 45,
@@ -486,15 +488,28 @@ function evalDay(ctx, emp, date, today, now) {
     return res;
   }
   if (date > today) { res.status = 'future'; return res; }
-  if (!inT) {
+  /* fill_missing: staff often go straight to a client in the morning, or leave for one and don't come back.
+     Punches before the middle of the working day are arrivals, after it departures; a side with none takes the
+     scheduled start or end (8:30 / 5:30, Thursday 2:30). Real punches stay as they are, a day with no punch at all
+     is still an absence, and today is filled only once the working day is over. */
+  let a = inT, b = outT;
+  if (st.fill_missing && (a || b) && (date < today || now >= sc.end)) {
+    const mid = (sc.start + sc.end) / 2, after = p.filter((t) => toMin(t) >= mid);
+    const am = (r && r.in) || p.find((t) => toMin(t) < mid) || null, pm = (r && r.out) || after[after.length - 1] || null;
+    if (!am || !pm) res.filled = am ? 'out' : 'in';
+    a = res.in = am || fromMin(sc.start); b = res.out = pm || fromMin(sc.end); // a corrected arrival plus a late device punch make a whole day too
+    res.worked = Math.max(0, toMin(b) - toMin(a));
+  }
+  if (!a) {
     if (date === today) res.status = now < sc.start + st.grace ? 'waiting' : 'notin';
     else res.status = 'absent';
     return res;
   }
-  if (i > sc.start + st.grace) res.late = i - sc.start;
-  if (!outT) { res.status = date === today ? 'inside' : 'missing'; return res; }
-  if (o < sc.end) res.early = sc.end - o;
-  if (o - sc.end >= st.ot_min) res.ot = o - sc.end;
+  const ti = toMin(a), to = toMin(b);
+  if (ti > sc.start + st.grace) res.late = ti - sc.start;
+  if (!b) { res.status = date === today ? 'inside' : 'missing'; return res; }
+  if (to < sc.end) res.early = sc.end - to;
+  if (to - sc.end >= st.ot_min) res.ot = to - sc.end;
   res.status = res.late > 0 ? 'late' : 'present';
   return res;
 }
@@ -943,7 +958,7 @@ function parseTaskSpeech(text, ctx) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.11.14';
+  const APP_VERSION = '2026.11.14-2';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -1219,6 +1234,9 @@ function parseTaskSpeech(text, ctx) {
     fwd: '<path d="m14.5 6-6 6 6 6"/>', // points left: forward in a right-to-left page
     back: '<path d="m9.5 6 6 6-6 6"/>',
   };
+  /* A time assumed for a missing punch (settings.fill_missing) is drawn dashed, with a note on hover. */
+  const tAt = (r, k) => (!r[k] ? '—' : r.filled === k ? '<i class="assumed" title="بصمة ناقصة: وقت مفترض">' + t12(r[k]) + '</i>' : t12(r[k]));
+  const fillNote = (r) => (r.filled === 'in' ? 'دخول مفترض (بصمة ناقصة)' : r.filled === 'out' ? 'خروج مفترض (بصمة ناقصة)' : '');
   const ic = (k, cls) => '<svg class="ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + ICON[k] + '</svg>';
   const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
   /* «محمد خليل محمد أبو حمدان» → «محمد أبو حمدان» */
@@ -1272,7 +1290,7 @@ function parseTaskSpeech(text, ctx) {
       '<div class="tile is-info"><span>في إجازة</span><b class="num">' + onLeave + '</b><em>إجازات معتمدة اليوم</em></div></div>';
     if (!hasData) out += '<div class="banner gold"><span>لا توجد حركات بصمة بعد. استورد ملف جهاز البصمة أو سجّل الحضور يدوياً من صفحة الحضور.</span><a class="btn btn-sm" href="#attendance" data-act="att-tab" data-v="import">استيراد ملف البصمة</a></div>';
     const board = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th>الحالة</th><th>دخول</th><th>خروج</th><th class="n">تأخير</th><th class="n">إضافي</th></tr></thead><tbody>' +
-      rows.map(({ e, r }) => '<tr class="click" data-act="att-edit" data-emp="' + esc(e.id) + '" data-date="' + t + '"><td>' + who(e, esc(e.title)) + '</td><td>' + chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + '</td><td class="num">' + t12(r.in) + '</td><td class="num">' + t12(r.out) + '</td><td class="n">' + (r.late ? '<span class="due-warn">' + hm(r.late) + '</span>' : '—') + '</td><td class="n">' + hm(r.ot + r.otOff) + '</td></tr>').join('') +
+      rows.map(({ e, r }) => '<tr class="click" data-act="att-edit" data-emp="' + esc(e.id) + '" data-date="' + t + '"><td>' + who(e, esc(e.title)) + '</td><td>' + chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + '</td><td class="num">' + tAt(r, 'in') + '</td><td class="num">' + tAt(r, 'out') + '</td><td class="n">' + (r.late ? '<span class="due-warn">' + hm(r.late) + '</span>' : '—') + '</td><td class="n">' + hm(r.ot + r.otOff) + '</td></tr>').join('') +
       '</tbody></table></div>';
     // attention
     const pend = S.leaves.filter((l) => l.status === 'pending').sort((a, b) => a.start.localeCompare(b.start));
@@ -1315,7 +1333,7 @@ function parseTaskSpeech(text, ctx) {
 
   /* ---------- ATTENDANCE ---------- */
   function renderAttendance() {
-    let out = head('الحضور والانصراف', isPhone() ? '' : 'الدوام يُحسب من أول بصمة وآخر بصمة في اليوم. الإضافي يبدأ بعد نهاية الدوام الرسمي.', seg('att-tab', UI.attTab, [['day', 'يومي'], ['month', 'شهري'], ['import', isPhone() ? 'استيراد' : 'استيراد البصمة']]));
+    let out = head('الحضور والانصراف', isPhone() ? '' : 'الدوام يُحسب من أول بصمة وآخر بصمة في اليوم. الإضافي يبدأ بعد نهاية الدوام الرسمي.' + (S.settings.fill_missing ? ' البصمة الناقصة تُكمَّل ببداية الدوام أو نهايته.' : ''), seg('att-tab', UI.attTab, [['day', 'يومي'], ['month', 'شهري'], ['import', isPhone() ? 'استيراد' : 'استيراد البصمة']]));
     if (!S.employees.length) return out + card('', noEmps());
     if (UI.attTab === 'month') return out + attMonth();
     if (UI.attTab === 'import') return out + attImport();
@@ -1329,7 +1347,7 @@ function parseTaskSpeech(text, ctx) {
     const tools = '<div class="toolbar"><button class="btn" data-act="att-day" data-v="-1">اليوم السابق</button><label class="field"><span>التاريخ</span><input type="date" id="att-date" data-ch="att-date" value="' + d + '"></label><button class="btn" data-act="att-day" data-v="1">اليوم التالي</button><button class="btn" data-act="att-day" data-v="0">اليوم</button></div>';
     const info = sc.type === 'work' ? 'دوام من <span class="num">' + t12(fromMin(sc.start)) + '</span> إلى <span class="num">' + t12(fromMin(sc.end)) + '</span>' : sc.type === 'holiday' ? 'عطلة رسمية: ' + esc(sc.name) + ' — أي عمل فيها يُحسب إضافياً بنسبة ' + int(S.settings.ot_rate_off * 100) + '%' : 'عطلة أسبوعية — أي عمل فيها يُحسب إضافياً بنسبة ' + int(S.settings.ot_rate_off * 100) + '%';
     const tbl = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الموظف</th><th>الحالة</th><th>دخول</th><th>خروج</th><th class="n">ساعات العمل</th><th class="n">تأخير</th><th class="n">خروج مبكر</th><th class="n">إضافي</th><th>ملاحظة</th><th></th></tr></thead><tbody>' +
-      rows.map(({ e, r }) => '<tr><td>' + who(e, e.fp_id ? 'رقم البصمة <span class="num">' + esc(e.fp_id) + '</span>' : '<span class="due-warn">بدون رقم بصمة</span>') + '</td><td>' + chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + (r.manual ? ' <span class="chip plain">يدوي</span>' : '') + '</td><td class="num">' + t12(r.in) + '</td><td class="num">' + t12(r.out) + '</td><td class="n">' + hm(r.worked) + '</td><td class="n">' + (r.late ? '<span class="due-warn">' + hm(r.late) + '</span>' : '—') + '</td><td class="n">' + hm(r.early) + '</td><td class="n">' + (r.ot || r.otOff ? '<b>' + hm(r.ot + r.otOff) + '</b>' + (r.otOff ? ' <small class="muted">(عطلة)</small>' : '') : '—') + '</td><td class="wrap muted">' + esc(r.note) + '</td><td><button class="btn btn-sm" data-act="att-edit" data-emp="' + esc(e.id) + '" data-date="' + d + '">تعديل</button></td></tr>').join('') +
+      rows.map(({ e, r }) => '<tr><td>' + who(e, e.fp_id ? 'رقم البصمة <span class="num">' + esc(e.fp_id) + '</span>' : '<span class="due-warn">بدون رقم بصمة</span>') + '</td><td>' + chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + (r.manual ? ' <span class="chip plain">يدوي</span>' : '') + (r.filled ? ' <span class="chip plain">بصمة مكمّلة</span>' : '') + '</td><td class="num">' + tAt(r, 'in') + '</td><td class="num">' + tAt(r, 'out') + '</td><td class="n">' + hm(r.worked) + '</td><td class="n">' + (r.late ? '<span class="due-warn">' + hm(r.late) + '</span>' : '—') + '</td><td class="n">' + hm(r.early) + '</td><td class="n">' + (r.ot || r.otOff ? '<b>' + hm(r.ot + r.otOff) + '</b>' + (r.otOff ? ' <small class="muted">(عطلة)</small>' : '') : '—') + '</td><td class="wrap muted">' + esc(r.note) + '</td><td><button class="btn btn-sm" data-act="att-edit" data-emp="' + esc(e.id) + '" data-date="' + d + '">تعديل</button></td></tr>').join('') +
       '</tbody></table></div>';
     if (isPhone()) return attDayP(d, sc, info, rows);
     return card(esc(F.full.format(dateObj(d))), tools + '<p class="note" style="margin-top:.6rem">' + info + '</p>') + card('', tbl, { flush: true });
@@ -1350,7 +1368,7 @@ function parseTaskSpeech(text, ctx) {
     if (pick) {
       const rows = pick.s.rows.filter((r) => r.status !== 'na');
       const det = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>اليوم</th><th>الحالة</th><th>دخول</th><th>خروج</th><th class="n">ساعات</th><th class="n">تأخير</th><th class="n">خروج مبكر</th><th class="n">إضافي</th><th>ملاحظة</th><th></th></tr></thead><tbody>' +
-        rows.map((r) => '<tr' + (r.status === 'off' || r.status === 'holiday' ? ' class="off"' : '') + '><td>' + esc(F.day.format(dateObj(r.date))) + '</td><td>' + chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + '</td><td class="num">' + t12(r.in) + '</td><td class="num">' + t12(r.out) + '</td><td class="n">' + hm(r.worked) + '</td><td class="n">' + hm(r.late) + '</td><td class="n">' + hm(r.early) + '</td><td class="n">' + hm(r.ot + r.otOff) + '</td><td class="wrap muted">' + esc(r.note) + '</td><td>' + (r.status === 'future' ? '' : '<button class="btn btn-sm" data-act="att-edit" data-emp="' + esc(pick.e.id) + '" data-date="' + r.date + '">تعديل</button>') + '</td></tr>').join('') + '</tbody></table></div>';
+        rows.map((r) => '<tr' + (r.status === 'off' || r.status === 'holiday' ? ' class="off"' : '') + '><td>' + esc(F.day.format(dateObj(r.date))) + '</td><td>' + chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + '</td><td class="num">' + tAt(r, 'in') + '</td><td class="num">' + tAt(r, 'out') + '</td><td class="n">' + hm(r.worked) + '</td><td class="n">' + hm(r.late) + '</td><td class="n">' + hm(r.early) + '</td><td class="n">' + hm(r.ot + r.otOff) + '</td><td class="wrap muted">' + esc(r.note) + '</td><td>' + (r.status === 'future' ? '' : '<button class="btn btn-sm" data-act="att-edit" data-emp="' + esc(pick.e.id) + '" data-date="' + r.date + '">تعديل</button>') + '</td></tr>').join('') + '</tbody></table></div>';
       out += card('تفاصيل ' + esc(pick.e.name), det, { flush: true, actions: '<button class="btn btn-sm" data-act="att-emp" data-v="">إغلاق</button>' });
     } else out += '<p class="note">اضغط على اسم موظف لعرض حضوره يوماً بيوم.</p>';
     return out;
@@ -1657,7 +1675,7 @@ function parseTaskSpeech(text, ctx) {
     const form = '<form id="cfg-form" data-form="cfg" class="modal-b" style="padding:0">' +
       card('أوقات الدوام', sch, { note: 'الإضافي يُحسب بعد نهاية الدوام. العمل في يوم العطلة يُحسب كله إضافياً.' }) +
       card('بداية التشغيل', '<div class="form-grid"><label class="field"><span>تاريخ بدء احتساب الحضور</span><input type="date" name="start_date" value="' + esc(s.start_date || '') + '"><small>الأيام قبله لا تُحسب غياباً. يتقدّم تلقائياً إذا استوردت حركات أقدم.</small></label></div>') +
-      card('التأخير والوقت الإضافي', '<div class="form-grid">' + num('grace', 'سماح التأخير (دقيقة)', s.grace) + num('ot_min', 'أقل مدة تُحسب إضافياً (دقيقة)', s.ot_min) + num('ot_rate', 'نسبة الإضافي في أيام الدوام', s.ot_rate, 0.05, '1.25 = 125% حسب المادة 59 من قانون العمل') + num('ot_rate_off', 'نسبة الإضافي في العطل', s.ot_rate_off, 0.05, '1.5 = 150%') + num('day_divisor', 'عدد أيام الشهر لحساب أجر اليوم', s.day_divisor) + num('hour_divisor', 'ساعات اليوم لحساب أجر الساعة', s.hour_divisor) + '</div>') +
+      card('التأخير والوقت الإضافي', '<div class="form-grid">' + num('grace', 'سماح التأخير (دقيقة)', s.grace) + num('ot_min', 'أقل مدة تُحسب إضافياً (دقيقة)', s.ot_min) + num('ot_rate', 'نسبة الإضافي في أيام الدوام', s.ot_rate, 0.05, '1.25 = 125% حسب المادة 59 من قانون العمل') + num('ot_rate_off', 'نسبة الإضافي في العطل', s.ot_rate_off, 0.05, '1.5 = 150%') + num('day_divisor', 'عدد أيام الشهر لحساب أجر اليوم', s.day_divisor) + num('hour_divisor', 'ساعات اليوم لحساب أجر الساعة', s.hour_divisor) + '<div class="full">' + chk('fill_missing', 'إكمال البصمة الناقصة تلقائياً: دخول بلا خروج يُحسب حتى نهاية الدوام، وخروج بلا دخول يُحسب من بدايته', s.fill_missing) + '</div></div>') +
       card('الخصومات والضمان الاجتماعي', '<div class="form-grid">' + num('ssc_emp', 'اقتطاع الموظف %', s.ssc_emp, 0.01) + num('ssc_er', 'حصة الشركة %', s.ssc_er, 0.01) + num('ssc_cap', 'الحد الأعلى للأجر الخاضع (دينار)', s.ssc_cap, 1) + '<div class="full" style="display:grid;gap:.5rem">' + chk('ded_absence', 'خصم يوم الغياب بدون إجازة', s.ded_absence) + chk('ded_unpaid', 'خصم الإجازة بدون راتب', s.ded_unpaid) + chk('ded_late', 'خصم دقائق التأخير والخروج المبكر بأجر الساعة', s.ded_late) + '</div></div>') +
       card('الإجازات', '<div class="form-grid">' + num('annual_leave', 'الإجازة السنوية (يوم)', s.annual_leave) + num('annual_leave_senior', 'السنوية بعد سنوات الخدمة (يوم)', s.annual_leave_senior) + num('senior_years', 'سنوات الخدمة المطلوبة', s.senior_years) + num('sick_leave', 'الإجازة المرضية بأجر (يوم)', s.sick_leave) + '</div>') +
       card('الطباعة', '<div class="form-grid"><div class="field full"><label class="check"><input type="checkbox" name="print_preprinted"' + (s.print_preprinted ? ' checked' : '') + '> أطبع على ورق مروّس جاهز (لا تطبع الترويسة واترك مكانها فارغاً)</label></div>' + num('print_top_mm', 'المسافة العلوية للورق المروّس (ملم)', s.print_top_mm) + '</div>', { note: 'يُطبَّق على نماذج الإجازات وكشوف الرواتب. اتركه بدون تحديد ليطبع النظام ترويسة الشركة وشعارها بنفسه.' }) +
@@ -1696,7 +1714,7 @@ function parseTaskSpeech(text, ctx) {
     if (!d.hasData) out += '<div class="banner gold"><span>لا توجد حركات بصمة بعد. استورد ملف جهاز البصمة أو سجّل الحضور يدوياً.</span><a class="btn btn-sm" href="#attendance" data-act="att-tab" data-v="import">استيراد ملف البصمة</a></div>';
     out += card('يحتاج انتباهك', d.att);
     const board = recs(rows.map(({ e, r }) => {
-      const times = [r.in ? 'دخول <span class="num">' + t12(r.in) + '</span>' : '', r.out ? 'خروج <span class="num">' + t12(r.out) + '</span>' : '', r.late ? '<span class="due-warn">تأخير ' + hm(r.late) + '</span>' : '', r.ot + r.otOff ? 'إضافي ' + hm(r.ot + r.otOff) : ''].filter(Boolean).join(' · ');
+      const times = [r.in ? 'دخول <span class="num">' + tAt(r, 'in') + '</span>' : '', r.out ? 'خروج <span class="num">' + tAt(r, 'out') + '</span>' : '', r.late ? '<span class="due-warn">تأخير ' + hm(r.late) + '</span>' : '', r.ot + r.otOff ? 'إضافي ' + hm(r.ot + r.otOff) : ''].filter(Boolean).join(' · ');
       return rec({ av: e.name, title: esc(shortName(e.name)), sub: times || esc(e.title || ''), end: chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : ''), act: 'data-act="att-edit" data-emp="' + esc(e.id) + '" data-date="' + t + '"' });
     }));
     out += sect('home:today', 'حضور اليوم', '<p class="note" style="margin:0 0 .6rem">اضغط على أي موظف لتعديل حركته.</p>' + board, { open: true, flush: true });
@@ -1713,8 +1731,8 @@ function parseTaskSpeech(text, ctx) {
     const sum = stats([['حاضر', n((r) => ['present', 'late', 'inside', 'missing', 'field', 'offwork'].includes(r.status)), 'ok'], ['متأخر', late, late ? 'warn' : ''], ['غائب', away, away ? 'bad' : ''], ['إجازة', lv, lv ? 'info' : '']], 'four');
     const list = recs(rows.map(({ e, r }) => rec({
       k: 'att:' + e.id, av: e.name, title: esc(shortName(e.name)),
-      sub: r.in ? '<span class="num">' + t12(r.in) + ' – ' + (r.out ? t12(r.out) : '…') + '</span>' + (r.worked ? ' · ' + hm(r.worked) + ' ساعة' : '') : r.note ? esc(r.note) : 'لا توجد بصمة',
-      end: chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + (r.manual ? '<small>معدّل يدوياً</small>' : ''),
+      sub: r.in ? '<span class="num">' + tAt(r, 'in') + ' – ' + (r.out ? tAt(r, 'out') : '…') + '</span>' + (r.worked ? ' · ' + hm(r.worked) + ' ساعة' : '') : r.note ? esc(r.note) : 'لا توجد بصمة',
+      end: chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : '') + (r.manual ? '<small>معدّل يدوياً</small>' : '') + (r.filled ? '<small>' + (r.filled === 'in' ? 'دخول مفترض' : 'خروج مفترض') + '</small>' : ''),
       more: stats([['ساعات العمل', hm(r.worked)], ['تأخير', hm(r.late), r.late ? 'warn' : ''], ['خروج مبكر', hm(r.early)], ['إضافي' + (r.otOff ? ' (عطلة)' : ''), hm(r.ot + r.otOff), r.ot + r.otOff ? 'gold' : ''], ['رقم البصمة', esc(e.fp_id || '—'), e.fp_id ? '' : 'warn']]) +
         (r.note ? '<p class="note">' + esc(r.note) + '</p>' : '') + '<div class="rec-a"><button class="btn btn-primary" data-act="att-edit" data-emp="' + esc(e.id) + '" data-date="' + d + '">تعديل الحركة</button></div>',
     })));
@@ -1730,7 +1748,7 @@ function parseTaskSpeech(text, ctx) {
       return out + recs(days.map((r) => {
         const off = r.status === 'off' || r.status === 'holiday';
         return rec({ tone: off ? 'off' : r.status === 'absent' ? 'bad' : r.late ? 'warn' : '', title: esc(F.day.format(dateObj(r.date))),
-          sub: (r.in ? '<span class="num">' + t12(r.in) + ' – ' + (r.out ? t12(r.out) : '…') + '</span>' : '') + (r.late ? ' · تأخير ' + hm(r.late) : '') + (r.ot + r.otOff ? ' · إضافي ' + hm(r.ot + r.otOff) : '') + (r.note ? (r.in ? ' · ' : '') + esc(r.note) : ''),
+          sub: (r.in ? '<span class="num">' + tAt(r, 'in') + ' – ' + (r.out ? tAt(r, 'out') : '…') + '</span>' : '') + (r.late ? ' · تأخير ' + hm(r.late) : '') + (r.ot + r.otOff ? ' · إضافي ' + hm(r.ot + r.otOff) : '') + (r.note ? (r.in ? ' · ' : '') + esc(r.note) : ''),
           end: chip(ST[r.status] || ['—', ''], r.status === 'leave' ? esc(LEAVE_T[r.leave.type] || '') : ''), act: r.status === 'future' ? '' : 'data-act="att-edit" data-emp="' + esc(one.e.id) + '" data-date="' + r.date + '"' });
       }));
     }
@@ -1950,6 +1968,7 @@ function parseTaskSpeech(text, ctx) {
       title: 'حركة ' + esc(e.name),
       body: '<p class="note" style="margin:0">' + esc(F.full.format(dateObj(date))) + ' · ' + chip(ST[r.status] || ['—', '']) + '</p>' +
         (punches.length ? '<p class="note" style="margin:0">بصمات الجهاز: <span class="num">' + punches.map(t12).join(' · ') + '</span></p>' : '<p class="note" style="margin:0">لا توجد بصمات من الجهاز لهذا اليوم. يمكنك إدخال الدخول والخروج يدوياً.</p>') +
+        (r.filled ? '<p class="note" style="margin:0">بصمة ناقصة: اعتبر النظام ' + (r.filled === 'in' ? 'الدخول' : 'الخروج') + ' <span class="num">' + t12(r[r.filled]) + '</span> تلقائياً. إذا كان الوقت الحقيقي غير ذلك فأدخله هنا.</p>' : '') +
         '<div class="form-grid"><label class="field"><span>وقت الدخول</span><input type="time" name="in" value="' + esc((man && man.in) || first) + '"></label><label class="field"><span>وقت الخروج</span><input type="time" name="out" value="' + esc((man && man.out) || last) + '"></label>' +
         '<label class="field wide-p"><span>نوع اليوم</span><select name="mark">' + (r.fieldStanding || (man && man.mark === 'office') ? '<option value="">عمل خارجي دائم (حسب ملف الموظف)</option><option value="office"' + (man && man.mark === 'office' ? ' selected' : '') + '>بالمكتب — حسب البصمة</option>' : '<option value="">حسب البصمة</option><option value="field"' + (man && man.mark === 'field' ? ' selected' : '') + '>عمل خارجي (عند عميل أو دائرة حكومية)</option>') + '</select></label>' +
         '<label class="field full"><span>ملاحظة</span><input type="text" name="note" value="' + esc((man && man.note) || '') + '" placeholder="مثل: نسي البصمة، مراجعة دائرة الضريبة"></label></div>',
@@ -2250,7 +2269,7 @@ function parseTaskSpeech(text, ctx) {
     tableHeader(ws, 8, ['التاريخ', 'اليوم', 'الموظف', 'الحالة', 'دخول', 'خروج', 'ساعات العمل', 'تأخير (دقيقة)', 'خروج مبكر (دقيقة)', 'إضافي (دقيقة)', 'إضافي عطلة (دقيقة)', 'ملاحظة']);
     const empRow = (r, d, dn, e, x, fill) => {
       const status = (ST[x.status] || ['—'])[0] + (x.status === 'leave' && x.leave ? ' ' + (LEAVE_T[x.leave.type] || '') : '');
-      const row = bodyRow(ws, r, [dmy(d), dn, e.name, status, x.in ? t12(x.in) : '', x.out ? t12(x.out) : '', x.worked ? hm(x.worked) : '', x.late || 0, x.early || 0, x.ot || 0, x.otOff || 0, x.note || ''], { fill, center: [1, 2, 5, 6, 7, 8, 9, 10, 11], wrap: [12] });
+      const row = bodyRow(ws, r, [dmy(d), dn, e.name, status, x.in ? t12(x.in) : '', x.out ? t12(x.out) : '', x.worked ? hm(x.worked) : '', x.late || 0, x.early || 0, x.ot || 0, x.otOff || 0, [x.note, fillNote(x)].filter(Boolean).join(' · ')], { fill, center: [1, 2, 5, 6, 7, 8, 9, 10, 11], wrap: [12] });
       if (x.status === 'absent' || x.status === 'notin') row.getCell(4).font = RP.font({ bold: true, color: { argb: 'FFB23B3B' } });
       return r + 1;
     };
@@ -2270,7 +2289,7 @@ function parseTaskSpeech(text, ctx) {
       for (const { e, x } of evs) r = empRow(r, d, dn, e, x, null);
       if (r - first > 1) { ws.mergeCells(first, 1, r - 1, 1); ws.mergeCells(first, 2, r - 1, 2); }
     }
-    noteRow(ws, r + 1, 12, 'السطر الأحمر يوم عطلة (الجمعة أو عطلة رسمية)، والسطر الذهبي عمل في يوم عطلة يُحسب إضافياً بنسبة ' + int(st.ot_rate_off * 100) + '%. التأخير يُحسب بعد سماح ' + int(st.grace) + ' دقيقة.');
+    noteRow(ws, r + 1, 12, 'السطر الأحمر يوم عطلة (الجمعة أو عطلة رسمية)، والسطر الذهبي عمل في يوم عطلة يُحسب إضافياً بنسبة ' + int(st.ot_rate_off * 100) + '%. التأخير يُحسب بعد سماح ' + int(st.grace) + ' دقيقة.' + (st.fill_missing ? ' البصمة الناقصة تُكمَّل ببداية الدوام أو نهايته (مذكور في الملاحظات).' : ''));
 
     const sm = reportSheet(wb, 'الملخص', [24, 11, 10, 10, 10, 12, 13, 15, 13, 15, 12], { title: 'ملخص الحضور الشهري', period, scope }, true);
     const cols = ['الموظف', 'أيام العمل', 'الحضور', 'الغياب', 'الإجازات', 'مرات التأخير', 'دقائق التأخير', 'دقائق الخروج المبكر', 'دقائق الإضافي', 'دقائق إضافي العطلة', 'بصمات ناقصة'];
@@ -2636,7 +2655,7 @@ function parseTaskSpeech(text, ctx) {
       const fd = new FormData(f), s = clean(S.settings);
       WEEK.forEach((d) => { s.schedule[d] = { on: fd.get('on_' + d) === 'on', start: fd.get('start_' + d) || '08:30', end: fd.get('end_' + d) || '17:30' }; });
       ['grace', 'ot_min', 'ot_rate', 'ot_rate_off', 'day_divisor', 'hour_divisor', 'ssc_emp', 'ssc_er', 'ssc_cap', 'annual_leave', 'annual_leave_senior', 'senior_years', 'sick_leave'].forEach((k) => { const v = Number(fd.get(k)); if (Number.isFinite(v)) s[k] = v; });
-      ['ded_absence', 'ded_unpaid', 'ded_late', 'print_preprinted'].forEach((k) => (s[k] = fd.get(k) === 'on'));
+      ['ded_absence', 'ded_unpaid', 'ded_late', 'fill_missing', 'print_preprinted'].forEach((k) => (s[k] = fd.get(k) === 'on'));
       { const v = Number(fd.get('print_top_mm')); if (Number.isFinite(v)) s.print_top_mm = v; }
       s.start_date = String(fd.get('start_date') || '');
       if (!s.day_divisor || !s.hour_divisor) return toast('عدد الأيام والساعات يجب أن يكون أكبر من صفر.', true);

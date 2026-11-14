@@ -13,6 +13,7 @@ const test = (name, fn) => { fn(); n++; console.log('ok  ' + name); };
 
 test('normal week: grace, late, missing, early, overtime, work on Friday', () => {
   const settings = P.mergeSettings(null);
+  settings.fill_missing = false; // the raw rule; filling a missing punch is tested below
   const emp = { id: 'e1', name: 'موظف', basic_salary: 600, allowances: 50, ssc: true };
   const days = {
     '2026-10-03': { rec: { e1: { p: ['08:40', '18:30'] } } }, // Sat: 10 min late is within grace; 60 min overtime
@@ -65,6 +66,36 @@ test('standing field-work period', () => {
   assert.equal(s('2026-11-05'), 'leave');    // leave wins
   assert.equal(s('2026-12-25'), 'holiday');  // holiday stays a holiday
   assert.equal(P.fieldPeriodOn(emp, '2027-01-02'), false);
+});
+
+test('a missing punch takes the start or the end of the working day', () => {
+  const settings = P.mergeSettings(null);
+  assert.equal(settings.fill_missing, true);
+  const emp = { id: 'e1', name: 'موظف', basic_salary: 600 };
+  const days = {
+    '2026-11-07': { rec: { e1: { p: ['09:01'] } } },          // Sat: arrived, left for a client, never came back
+    '2026-11-08': { rec: { e1: { p: ['17:33'] } } },          // Sun: a client first, punched only on leaving
+    '2026-11-09': { rec: { e1: { p: ['08:40', '11:10'] } } }, // Mon: punched again leaving for a client at 11:10
+    '2026-11-10': { rec: { e1: { p: ['13:20', '17:40'] } } }, // Tue: came in from a client after midday
+    '2026-11-12': { rec: { e1: { p: ['14:30'] } } },          // Thu (ends 14:30): only the exit
+    '2026-11-14': { rec: { e1: { p: ['08:50'] } } },          // today
+    '2026-11-15': { rec: { e1: { p: ['17:34'], in: '08:34' } } }, // arrival corrected by hand, exit from the device
+  };
+  const ctx = { settings, days, leaves: [] };
+  const d = (date, now) => P.evalDay(ctx, emp, date, '2026-11-14', now == null ? 600 : now);
+  const has = (r, want) => { for (const k of Object.keys(want)) assert.equal(r[k], want[k], k + ' on ' + r.date); };
+  has(d('2026-11-07'), { status: 'late', in: '09:01', out: '17:30', filled: 'out', late: 31, early: 0, ot: 0, worked: 509 }); // a real late arrival stays late
+  has(d('2026-11-08'), { status: 'present', in: '08:30', out: '17:33', filled: 'in', late: 0, ot: 0 });
+  has(d('2026-11-09'), { status: 'present', in: '08:40', out: '17:30', filled: 'out', early: 0 });
+  has(d('2026-11-10'), { status: 'present', in: '08:30', out: '17:40', filled: 'in', late: 0 });
+  has(d('2026-11-12'), { status: 'present', in: '08:30', out: '14:30', filled: 'in', early: 0 });
+  has(P.evalDay(ctx, emp, '2026-11-15', '2026-11-16', 600), { status: 'present', in: '08:34', out: '17:34', filled: undefined, worked: 540 });
+  has(d('2026-11-11'), { status: 'absent' });                                            // no punch at all is still an absence
+  has(d('2026-11-14', 600), { status: 'inside', out: null });                             // the day is not over yet
+  has(d('2026-11-14', 1060), { status: 'late', out: '17:30', filled: 'out', late: 20 }); // after 17:30 it is filled
+  settings.fill_missing = false;
+  has(d('2026-11-07'), { status: 'missing', out: null });
+  has(d('2026-11-08'), { status: 'missing', in: '17:33' });
 });
 
 test('voice task: a spoken sentence becomes the task fields', () => {

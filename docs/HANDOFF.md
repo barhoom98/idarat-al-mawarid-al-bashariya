@@ -39,6 +39,8 @@ The order follows `git log`:
     - Voice: speech becomes text in the browser, then `parseTaskSpeech()` fills the form for review. Not yet tried on the owner's own phone: ask how the recognition went, and whether his installed app (iPhone or Android) allows the microphone.
     - WhatsApp: opens a ready message to the employee's number; the owner presses send. He was told that fully automatic sending needs the WhatsApp Business API and did not ask for it.
 
+15. **Missing punches filled** (14 Nov, `APP_VERSION` 2026.11.14-2). The owner asked that a missing morning punch count as 8:30 and a missing exit as 5:30, because staff go to clients and don't come back. See `fill_missing` in `CLAUDE.md`. He had been typing these exits in by hand. Nine past days changed from «بصمة ناقصة» to complete; no salary changed (missing days already counted as present, and late deduction is off).
+
 ## Live system facts (12 Nov 2026)
 
 **Employees** (`emp-01` … `emp-08`):
@@ -119,6 +121,9 @@ Edge function logs (`function_edge_logs`, request `content_length`) tell you wha
 
 ## Open threads
 
+0. **Raised with the owner on 14 Nov, no answer yet:**
+   - emp-02 on Thursday 2026-11-05 has a manual exit at 17:30, while Thursdays end at 14:30. That pays 3 hours of overtime in November. Is it right?
+   - emp-03 on 2026-11-05 has no punch at all, so it counts as an absence and a day is deducted. If he was at a client, mark the day «عمل خارجي».
 1. **emp-08's fingerprints, on the device.** The owner was given the steps on 28 Oct but had not confirmed doing them:
    - delete user 1's and user 11's fingerprints only, not the users;
    - re-enroll emp-08 with two fingers;
