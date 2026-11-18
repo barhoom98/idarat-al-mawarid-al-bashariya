@@ -41,6 +41,8 @@ The order follows `git log`:
 
 15. **Missing punches filled** (14 Nov, `APP_VERSION` 2026.11.14-2). The owner asked that a missing morning punch count as 8:30 and a missing exit as 5:30, because staff go to clients and don't come back. See `fill_missing` in `CLAUDE.md`. He had been typing these exits in by hand. Nine past days changed from «بصمة ناقصة» to complete; no salary changed (missing days already counted as present, and late deduction is off).
 
+16. **Own address** (18 Nov). The app moved to https://hr.alabed-jo.com/ at the owner's request («alabed» instead of «barhoom98» in the link). The domain and the staff mailboxes (Microsoft 365 Email Plus) are with GoDaddy. Each person had to sign in again at the new address and re-add the home-screen icon.
+
 ## Live system facts (12 Nov 2026)
 
 **Employees** (`emp-01` … `emp-08`):

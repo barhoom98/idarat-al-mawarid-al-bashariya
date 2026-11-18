@@ -4,11 +4,11 @@ Internal HR web app for شركة الألفية للخدمات الضريبية 
 
 **New session? Read `docs/HANDOFF.md` first:** history of the original build conversation, live-system facts, the office fingerprint setup, and open threads with the owner. Tests: `tests/README.md`.
 
-**Owner's standing request:** after every change, end the reply with the live link on its own line: https://barhoom98.github.io/idarat-al-mawarid-al-bashariya/ (the URL never changes; pushing to `main` updates it).
+**Owner's standing request:** after every change, end the reply with the live link on its own line: https://hr.alabed-jo.com/ (the URL never changes; pushing to `main` updates it).
 
 ## Stack
 - Static single-page app, no build step: `index.html` (all CSS + JS inline), `config.js`, `sw.js`, `manifest.webmanifest`, `icons/`.
-- Hosted on GitHub Pages from `main` (root): https://barhoom98.github.io/idarat-al-mawarid-al-bashariya/ — pushing to `main` deploys.
+- Hosted on GitHub Pages from `main` (root) at the company's own domain: https://hr.alabed-jo.com/ (`CNAME` file; DNS at GoDaddy: CNAME `hr` → `barhoom98.github.io`). The old https://barhoom98.github.io/idarat-al-mawarid-al-bashariya/ redirects there. Pushing to `main` deploys. Every path in the app is relative, so it works at either address.
 - Backend: Supabase project `millennium-hr` (ref `nxhlxwpwpyicyprnsdfp`, eu-central-1). Client: supabase-js 2.49.4 UMD from jsDelivr (fallbacks in `index.html`).
 - After changing `index.html` or other shell files, bump `CACHE` in `sw.js` and `APP_VERSION` in `index.html` (shown in the side rail, so the owner can confirm they have the latest). The page reloads itself once when a new service worker takes over.
 - Choosing a client anywhere uses `clientPicker()` (searchable box: name, tax number or accountant; Arabic letters normalised by `normAr`) — use it for any new client field instead of a plain `<select>`.
