@@ -58,7 +58,7 @@ Other device numbers:
 - emp-02 → 2, emp-03 → 3, emp-04 → 5, emp-05 → 7, emp-06 → 10, emp-07 → 4.
 - Device users 6, 8, 9, 12 and 13 are former staff whose fingerprints are still on the device. They are not mapped, by design.
 
-**Phones:** on 14 Nov the owner gave WhatsApp numbers for emp-02, emp-03, emp-04, emp-05, emp-06 and emp-08; they are in `employees.data.phone`. emp-01 and emp-07 have none (the app asks for the number the first time a notice goes to them).
+**Phones:** WhatsApp numbers are in `employees.data.phone` for emp-02 to emp-08 (emp-07's added on 19 Nov). emp-01 has none (the app asks for the number the first time a notice goes to him).
 
 **Settings:**
 
