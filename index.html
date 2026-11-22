@@ -732,6 +732,13 @@ const AR_WEEKDAY = { احد: 0, اثنين: 1, اتنين: 1, تنين: 1, ثل�
 const AR_PERIOD = { صبح: 'am', صباح: 'am', صباحا: 'am', ظهر: 'noon', ظهرا: 'noon', عصر: 'pm', عصرا: 'pm', مغرب: 'pm', مسا: 'pm', مساء: 'pm', ليل: 'pm', عشا: 'pm', عشاء: 'pm' };
 /* Words of the trade that must never pick a client by themselves (a client called «… الضمان» is chosen by hand). */
 const VOICE_STOP = new Set('اقرار اقرارات ضريبه ضريبي ضرائب دخل مبيعات ضمان اجتماعي رواتب راتب اقتطاع اقتطاعات تدقيق مراجعه قوائم ماليه مالي ميزانيه حسابات حساب فواتير فاتوره قيود دفاتر معامله معاملات ملف ملفات سنه سنوات سنوي سنتين عام شهر شهري شهرين اشهر يوم اسبوع تسليم تقديم تجهيز اعداد تعديل متابعه مطلوب عميل زبون مهمه مسؤول مسئول موظف ساعه موعد تاريخ دائره مديريه شركه مؤسسه محل محلات عن من في علي الي مع هذا هذه كل جديد جديده ضريبيه محاسبيه محاسبه محاسب خدمات استشاره استشارات صناعه صناعات صناعيه تجاره تجاريه زراعه زراعيه خضار فواكه مواد عامه دوليه اردن اردنيه عمان اول اولي ثاني ثانيه وزاره رخصه سجل'.split(' '));
+/* Said before or after the task and never part of it (normalised as normAr does). */
+const VOICE_GREET = ['صباح الخير', 'صباح النور', 'صباح الورد', 'صباح الفل', 'صباح الخيرات', 'صباحو', 'مسا الخير', 'مساء الخير', 'مسا النور', 'مساء النور', 'مسا الورد', 'مساء الورد', 'مسا الفل', 'مساء الفل',
+  'يسعد صباحك', 'يسعد صباحكم', 'يسعد مساك', 'يسعد مساكم', 'السلام عليكم ورحمه الله وبركاته', 'السلام عليكم ورحمه الله', 'السلام عليكم', 'سلام عليكم', 'وعليكم السلام', 'مرحبا بكم', 'مرحبا', 'مرحبتين', 'اهلين', 'اهلا', 'هلا والله', 'هلا',
+  'الله يعطيك العافيه', 'الله يعطيكم العافيه', 'يعطيك العافيه', 'يعطيكم العافيه', 'يعطيك الف عافيه', 'الله يعافيك', 'الله يعافيكم', 'كيف الحال', 'كيف حالك', 'كيف حالكم', 'كيفك', 'كيفكم', 'شو الاخبار',
+  'ان شاء الله', 'انشاء الله', 'ان شالله', 'انشالله', 'بعون الله', 'الحمد لله', 'الحمدلله', 'ما شاء الله', 'بارك الله فيك', 'الله يخليك', 'الله يسعدك', 'الله يوفقك', 'الله يوفقكم',
+  'شكرا جزيلا', 'شكرا', 'مشكور', 'مشكوره', 'مشكورين', 'يسلمو ايديك', 'يسلمو', 'يسلموا', 'تسلم ايدك', 'تسلم', 'تسلمي', 'تسلمو', 'لو سمحت', 'لو سمحتي', 'لو سمحتو', 'من فضلك', 'من فضلكم', 'يا ريت', 'ياريت',
+  'يا شباب', 'يا جماعه', 'يا اخوان', 'يا اخوي', 'يا صبايا', 'يا بنات', 'يا غالي', 'شباب', 'جماعه', 'صبايا', 'طيب', 'تمام', 'يلا', 'اوكي', 'بس هيك', 'هيك خلص', 'يعني', 'اممم', 'امم'].map((g) => g.split(' '));
 /* parseTaskSpeech('إقرار الدخل لشركة النور عن 2023 و2024، المسؤول سامر، يوم الأحد الساعة عشرة، مستعجل', {today, employees, clients})
    → {title, employee_id, client_id, clientAlt[], due, dueSaid, time, years[], priority, category, recur}.
    Nothing here is final: the task form shows every field for correction before saving. */
@@ -744,6 +751,13 @@ function parseTaskSpeech(text, ctx) {
   const free = (i) => i >= 0 && i < n.length && !used[i] && n[i] !== '';
   const joinBefore = (i, role) => { if (free(i - 1) && /^(و|في)$/.test(n[i - 1])) used[i - 1] = role; };
   const out = { title: '', employee_id: '', client_id: '', clientAlt: [], due: today, dueSaid: false, time: '', years: [], priority: 'normal', category: '', recur: 'none' };
+
+  /* greetings and courtesies are not part of the task: «صباح الخير» must not find «شركة تل الخير» */
+  for (let i = 0; i < n.length; i++) {
+    if (!free(i)) continue;
+    const g = VOICE_GREET.find((ph) => ph.every((w, k) => n[i + k] === w));
+    if (g) { take(i, g.length, 'g'); i += g.length - 1; }
+  }
 
   /* time: «الساعة عشرة ونص», «10:30», «3 العصر» */
   const periodAt = (i) => (n[i] === 'بعد' && st[i + 1] === 'ظهر' ? { p: 'pm', n: 2 } : AR_PERIOD[st[i]] ? { p: AR_PERIOD[st[i]], n: 1 } : null);
@@ -871,22 +885,26 @@ function parseTaskSpeech(text, ctx) {
 
   /* words of the clients' names, weighted so that rare words (a family name) count and «شركة», «للتجارة» barely do */
   const N = clients.length, df = {};
-  const C = clients.map((c) => ({ id: c.id, tk: [...new Set(normAr(c.name).split(/[^\p{L}\p{N}]+/u).map(stemAr).filter((w) => w.length >= 2 && !VOICE_STOP.has(w) && !/^\d+$/.test(w)))] }));
+  /* names are compared with doubled letters and ؤ/ئ evened out: «رؤووف» = «رؤوف», «داوود» = «داود» */
+  const sq = (w) => w.replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').replace(/(.)\1+/gu, '$1'), stq = st.map(sq);
+  const C = clients.map((c) => { const raw = normAr(c.name).split(/[^\p{L}\p{N}]+/u).map(stemAr).filter((w) => w.length >= 2 && !/^\d+$/.test(w)); return { id: c.id, seq: raw.map(sq), tk: [...new Set(raw.filter((w) => !VOICE_STOP.has(w)).map(sq))] }; });
+  const pairs = new Set(); C.forEach((c) => c.seq.forEach((w, k) => { if (k) pairs.add(c.seq[k - 1] + '|' + w); }));
+  const ends = (i) => /[،,.:؛!?؟]$/.test(orig[i] || ''); // a pause the speaker marked: the name stops there
   C.forEach((c) => c.tk.forEach((w) => (df[w] = (df[w] || 0) + 1)));
   const wt = (w) => Math.log((N + 1) / ((df[w] || 0) + 0.5)), rare = (w) => wt(w) >= 0.65 * Math.log((N + 1) / 1.5);
-  const said0 = new Set(st.filter((w, i) => free(i)));
+  const said0 = new Set(stq.filter((w, i) => free(i)));
 
   /* employee said outright: «المسؤول سامر», first name with more of the name, or a family name nobody else has */
   const allE = (ctx.employees || []).map((e) => { const tk = normAr(e.name).split(' ').filter(Boolean).map(stemAr); return { id: e.id, on: e.active !== false, first: tk[0] || '', last: tk[tk.length - 1] || '', set: new Set(tk) }; });
   const E = allE.filter((x) => x.on);
-  const firsts = new Set(E.map((x) => x.first));
+  const firsts = new Set(E.map((x) => sq(x.first)));
   /* a family name counts on its own unless something else of a client who carries it was said too («أبو حمدان» the employee, «نصر أبو حمدان» the client) */
-  E.forEach((x) => { x.fam = x.set.size > 1 && x.last.length >= 4 && allE.every((y) => y === x || !y.set.has(x.last)) && !C.some((c) => c.tk.includes(x.last) && c.tk.some((w) => w !== x.last && !/^(ابو|عبد|بن|ام)$/.test(w) && said0.has(w) && rare(w))) ? x.last : ''; });
+  E.forEach((x) => { x.fam = x.set.size > 1 && x.last.length >= 4 && allE.every((y) => y === x || !y.set.has(x.last)) && !C.some((c) => c.tk.includes(sq(x.last)) && c.tk.some((w) => w !== sq(x.last) && !/^(ابو|عبد|بن|ام)$/.test(w) && said0.has(w) && rare(w))) ? x.last : ''; });
   const ECUE = /^(و)?(ال)?(مسؤول|مسئول|مسؤوله|مسئوله|مسؤوليه|مسئوليه|موظف|موظفه|محاسب|محاسبه|مكلف|مكلفه)$/, EVERB = /^(و)?(كلف|كلفي|بلغ|بلغي|خبر|خبري|خلي|يستلمها|تستلمها|يعملها|تعملها|يتابعها|تتابعها|يجهزها|تجهزها)$/;
   const NEARW = /^(علي|عند|مع|الي)$/, CLIENTW = /^(شركه|مؤسسه|محلات|محل|مصنع|مطعم|عميل|زبون)$/;
   const runLen = (x, i) => { let k = 1; while (free(i + k) && x.set.has(st[i + k])) k++; return k; };
   const byFirst = (i) => E.filter((y) => y.first === st[i]).sort((a, b) => runLen(b, i) - runLen(a, i))[0]; // two with one first name: the fuller match
-  const cueAt = (i) => { let b = i - 1; while (b >= 0 && i - b <= 3 && (n[b] === '' || /^(عنها|عنه|عن|هو|هي|المهمه|فيها)$/.test(n[b]))) b--; return free(b) && (ECUE.test(n[b]) || EVERB.test(n[b])) ? b : -1; };
+  const cueAt = (i) => { let b = i - 1; while (b >= 0 && i - b <= 3 && (n[b] === '' || /^(عنها|عنه|عن|هو|هي|المهمه|فيها)$/.test(n[b]))) b--; return free(b) && (ECUE.test(n[b]) || EVERB.test(n[b]) || n[b] === 'يا') ? b : -1; };
   const claim = (x, i, k) => { // tokens i … i+k-1 are the name; the cue in front of it goes with it
     let a = i;
     if (free(a - 1) && n[a - 1] === 'ابو' && x.set.has('ابو')) a--;
@@ -898,29 +916,44 @@ function parseTaskSpeech(text, ctx) {
     for (let i = 0; i < n.length && !out.employee_id; i++) {
       if (!free(i) || CLIENTW.test(st[i - 1] || '')) continue;
       const x = byFirst(i), k = x ? runLen(x, i) : 0;
-      if (x && (pass === 0 ? cueAt(i) >= 0 : k >= 2)) { claim(x, i, k); break; }
+      const lead = used.slice(0, i).every((u, j) => u || n[j] === '' || /^(مهمه|جديده|بدي|بدنا)$/.test(n[j]));
+      if (x && (pass === 0 ? cueAt(i) >= 0 || (lead && (k >= 2 || ends(i) || !pairs.has(stq[i] + '|' + stq[i + 1]))) : k >= 2)) { claim(x, i, k); break; }
       const z = E.find((y) => y.fam && y.fam === st[i]); // «المسؤول أبو حمدان», «العمري يجهز …»
       if (z && (pass === 1 || cueAt(n[i - 1] === 'ابو' ? i - 1 : i) >= 0)) claim(z, i, 1);
     }
   }
 
-  /* client: the name whose rarer words are in the sentence; near ties are offered instead of guessed */
-  const said = new Set(); n.forEach((t, i) => { if (free(i) && st[i].length >= 2 && !VOICE_STOP.has(st[i]) && !/\d/.test(t)) said.add(st[i]); });
-  const cands = [];
+  /* client: the name whose rarer words are in the sentence, most of all when said in the name's own order («محمد علي محمود الشريف»).
+     One word alone picks a client only after «شركة / مؤسسة / ملف …» or «ل…», or when hardly any client shares it; otherwise it is only offered.
+     Near ties are offered instead of guessed. */
+  const said = new Set(); n.forEach((t, i) => { if (free(i) && st[i].length >= 2 && !VOICE_STOP.has(st[i]) && !/\d/.test(t)) said.add(stq[i]); });
+  const CCUE = /^(شركه|مؤسسه|محلات|محل|مصنع|مطعم|فندق|عميل|زبون|ملف|ملفات|مكلف|المكلف|حساب|حسابات|اقرار|اقرارات|براءه|تدقيق|ميزانيه)$/;
+  const cueFor = (w) => n.some((t, i) => free(i) && stq[i] === w && ((t !== st[i] && /^(ل|لل)/.test(t)) || CCUE.test(st[i - 1] || '') || CCUE.test(n[i - 1] || '') || (CCUE.test(st[i - 2] || '') && /^(ال|ل)/.test(n[i - 1] || ''))));
+  const run = (seq) => { // longest stretch of the name said word for word: {len, at}
+    let best = { len: 0, at: -1 };
+    for (let i = 0; i < n.length; i++) for (let j = 0; j < seq.length; j++) { let k = 0; while (free(i + k) && j + k < seq.length && stq[i + k] === seq[j + k] && (k === 0 || !ends(i + k - 1))) k++; if (k > best.len) best = { len: k, at: i }; }
+    return best;
+  };
+  const strong = [], weak = [];
   for (const c of C) {
     const hit = c.tk.filter((w) => said.has(w));
     if (!hit.some((w) => rare(w) && !firsts.has(w))) continue;
-    const got = hit.reduce((s, w) => s + wt(w), 0), all = c.tk.reduce((s, w) => s + wt(w), 0);
-    cands.push({ id: c.id, hit, score: got + got / all });
+    const got = hit.reduce((s, w) => s + wt(w), 0), all = c.tk.reduce((s, w) => s + wt(w), 0), rr = run(c.seq), r = rr.len;
+    const x = { id: c.id, hit, rr, score: got + got / all + (r >= 2 ? 0.8 * r : 0) + (r >= 2 && r === c.seq.length ? 3 : 0) };
+    const one = hit.length === 1 && r < 2;
+    (one && !cueFor(hit[0]) && !(hit[0].length >= 4 && df[hit[0]] <= 2) ? weak : strong).push(x);
   }
-  cands.sort((a, b) => b.score - a.score);
+  const cands = (strong.length ? strong : weak).sort((a, b) => b.score - a.score);
   if (cands.length) {
-    const top = cands[0], clear = cands.length === 1 || top.score >= cands[1].score * 1.2;
+    const top = cands[0], clear = strong.length > 0 && (cands.length === 1 || top.score >= cands[1].score * 1.2);
     const shown = clear ? [top] : cands.filter((c) => c.score >= top.score * 0.6).slice(0, 4);
     if (clear) out.client_id = top.id;
     out.clientAlt = (clear ? cands.filter((c) => c.score >= top.score * 0.5) : shown).slice(0, 4).map((c) => c.id);
-    const words = new Set(shown.flatMap((c) => c.hit));
-    n.forEach((t, i) => { if (free(i) && words.has(st[i])) used[i] = 'c'; });
+    if (strong.length) { // the client's words leave the sentence; an employee's first name only when it is inside the said name
+      const keep = new Set(shown.flatMap((c) => c.hit.filter((w) => !firsts.has(w))));
+      shown.forEach((c) => { if (c.rr.len >= 2) take(c.rr.at, c.rr.len, 'c'); });
+      n.forEach((t, i) => { if (free(i) && keep.has(stq[i])) used[i] = 'c'; });
+    }
   }
 
   /* employee by first name alone, outside the client's name: «لسامر» or «على سامر» beats a bare «سامر» */
@@ -944,9 +977,9 @@ function parseTaskSpeech(text, ctx) {
     : has('معامله', 'دائره', 'وزاره', 'امانه', 'رخصه', 'ترخيص', 'براءه') ? 'معاملة حكومية' : '';
 
   /* title: what was said, without the parts that became fields of their own (who, when, how urgent) */
-  const gone = (i) => 'tdpre'.includes(used[i]) && used[i] !== '';
+  const gone = (i) => 'tdpreg'.includes(used[i]) && used[i] !== '';
   let a = 0, b = n.length - 1;
-  while (a <= b && (gone(a) || n[a] === '' || /^(مهمه|جديده|سجل|سجلي|ضيف|ضيفي|اضف|بدي|مطلوب|المطلوب)$/.test(n[a]))) a++;
+  while (a <= b && (gone(a) || n[a] === '' || /^(مهمه|جديده|سجل|سجلي|ضيف|ضيفي|اضف|بدي|بدنا|اريد|نريد|منك|منكم|مطلوب|المطلوب|يا)$/.test(n[a]))) a++;
   while (b >= a && (gone(b) || n[b] === '' || /^(و|في|يوم|علي|الي|ل|عن|مع|من|ب)$/.test(n[b]))) b--;
   out.title = orig.slice(a, b + 1).filter((w, k) => !gone(a + k)).join(' ').replace(/^[\s،,:;.\-]+|[\s،,:;\-]+$/g, '');
   return out;
@@ -958,7 +991,7 @@ function parseTaskSpeech(text, ctx) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.11.14-2';
+  const APP_VERSION = '2026.11.22';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -1011,6 +1044,7 @@ function parseTaskSpeech(text, ctx) {
     payMonth: today0.slice(0, 7), taskStatus: 'open', taskEmp: '', taskClient: '', taskQ: '', clientQ: '', clientEmp: '', clientCycle: '', clientKind: '', empShowInactive: false,
     imp: null, impOrder: 'dmy', impMap: {}, impBusy: false, impProgress: '',
     openK: {}, // folded cards the person opened or closed, by key
+    clientShow: {}, // how many cards an opened client group shows (phone)
   };
   const ctx = () => ({ settings: S.settings, days: S.days, leaves: S.leaves });
   const activeEmps = () => S.employees.filter((e) => e.active !== false);
@@ -1257,7 +1291,7 @@ function parseTaskSpeech(text, ctx) {
   const stats = (items, cls) => '<div class="stats' + (cls ? ' ' + cls : '') + '">' + items.filter(Boolean).map(([l, v, tone]) => '<div' + (tone ? ' class="is-' + tone + '"' : '') + '><span>' + l + '</span><b class="num">' + v + '</b></div>').join('') + '</div>';
   const kv = (rows) => { rows = rows.filter(Boolean); return rows.length ? '<dl class="kv">' + rows.map(([k, v]) => '<dt>' + k + '</dt><dd>' + v + '</dd>').join('') + '</dl>' : ''; };
   /* A card that folds (its heading is the button), and a small fold for filters. */
-  const sect = (k, title, body, o) => '<details class="card sect" data-k="' + esc(k) + '"' + (isOpen(k, o && o.open) ? ' open' : '') + '><summary class="card-h"><h2>' + title + '</h2>' + ((o && o.end) || '') + ic('chev', 'rec-v') + '</summary><div class="card-b"' + (o && o.flush ? ' style="padding:.6rem"' : '') + '>' + body + '</div></details>';
+  const sect = (k, title, body, o) => '<details class="card sect" data-k="' + esc(k) + '"' + (o && o.lazy ? ' data-lazy="1"' : '') + (isOpen(k, o && o.open) ? ' open' : '') + '><summary class="card-h"><h2>' + title + '</h2>' + ((o && o.end) || '') + ic('chev', 'rec-v') + '</summary><div class="card-b"' + (o && o.flush ? ' style="padding:.6rem"' : '') + '>' + body + '</div></details>';
   const fold = (k, label, body, open) => '<details class="fold" data-k="' + esc(k) + '"' + (isOpen(k, open) ? ' open' : '') + '><summary class="btn btn-sm">' + label + ic('chev', 'rec-v') + '</summary><div class="fold-b">' + body + '</div></details>';
   /* Quick choice: one press sets the value (task status, priority, list filter). items: [value, label, tone] */
   const pick = (act, attrs, cur, items) => '<div class="pick" role="group">' + items.map(([v, l, tone]) => '<button type="button"' + (tone ? ' class="' + tone + '"' : '') + ' data-act="' + act + '" ' + attrs + ' data-v="' + esc(v) + '" aria-pressed="' + (v === cur) + '">' + l + '</button>').join('') + '</div>';
@@ -1566,7 +1600,7 @@ function parseTaskSpeech(text, ctx) {
       if (!hid.dataset.touched && hid.value !== r.client_id) cpPick(hid.closest('.cpick'), r.client_id);
     }
     const e = empById(f.elements.employee_id.value), c = clientById(hid.value), sum = document.getElementById('voice-sum'), alt = document.getElementById('voice-alt');
-    if (sum) sum.innerHTML = !text ? '' : chip(e ? ['المسؤول: ' + shortName(e.name), 'ok'] : ['لم أسمع اسم الموظف', 'warn']) + chip(c ? ['العميل: ' + c.name, 'ok'] : r.clientAlt.length ? ['أكثر من عميل بهذا الاسم', 'warn'] : ['بدون عميل', '']) +
+    if (sum) sum.innerHTML = !text ? '' : chip(e ? ['المسؤول: ' + shortName(e.name), 'ok'] : ['لم أسمع اسم الموظف', 'warn']) + chip(c ? ['العميل: ' + c.name, 'ok'] : r.clientAlt.length ? ['اختر العميل من الاقتراحات تحت', 'warn'] : ['بدون عميل', '']) +
       chip(r.dueSaid ? [fullDay(r.due) + (r.time ? ' · ' + t12(r.time) : ''), 'ok'] : ['لم تذكر موعداً: اليوم', 'warn']) + (r.years.length ? chip(['السنوات ' + r.years.join('، '), 'ok']) : '') + (r.priority !== 'normal' ? chip(TASK_P[r.priority]) : '');
     const others = text && !hid.dataset.touched ? r.clientAlt.filter((id) => !c || id !== c.id) : [];
     if (alt) alt.innerHTML = others.length ? '<span class="note">هل تقصد:</span>' + others.map((id) => '<button type="button" class="chip-btn" data-act="voice-client" data-v="' + esc(id) + '">' + esc(clientName(id)) + '</button>').join('') : '';
@@ -1626,14 +1660,15 @@ function parseTaskSpeech(text, ctx) {
     if (none.length) groups.push({ e: null, rows: none });
     return groups;
   }
+  const groupLabel = (g, short) => (g.e ? esc(short ? shortName(g.e.name) : g.e.name) : g.rows.every((c) => !c.gst_cycle) ? (short ? 'ملفات ضريبة الدخل' : 'ملفات ضريبة الدخل (بدون محاسب مسؤول)') : 'بدون مسؤول');
   function renderClients() {
     let out = head('العملاء', 'ملفات العملاء مرتّبة حسب المحاسب المسؤول. الدورة الزوجية لإقرارات المبيعات: 1–2، 3–4 … 11–12، والفردية: 12–1، 2–3 … 10–11.', '<button class="btn" data-act="xlsx-clients">تنزيل القائمة (Excel)</button><button class="btn btn-primary" data-act="client-new">عميل جديد</button>');
     const all = S.clients, list = clientsFiltered(), t = todayStr();
     const n = (f) => all.filter(f).length;
-    if (all.length) out += '<div class="tiles"><div class="tile"><span>كل العملاء</span><b class="num">' + int(all.length) + '</b></div><div class="tile"><span>شركات</span><b class="num">' + int(n((c) => c.kind === 'company')) + '</b></div><div class="tile"><span>مؤسسات فردية</span><b class="num">' + int(n((c) => c.kind === 'est')) + '</b></div><div class="tile is-info"><span>الدورة الزوجية</span><b class="num">' + int(n((c) => c.gst_cycle === 'even')) + '</b></div><div class="tile"><span>الدورة الفردية</span><b class="num" style="color:var(--gold-ink)">' + int(n((c) => c.gst_cycle === 'odd')) + '</b></div></div>';
+    if (all.length) out += '<div class="tiles"><div class="tile"><span>كل العملاء</span><b class="num">' + int(all.length) + '</b></div><div class="tile"><span>شركات</span><b class="num">' + int(n((c) => c.kind === 'company')) + '</b></div><div class="tile"><span>أفراد</span><b class="num">' + int(n((c) => c.kind === 'person')) + '</b></div><div class="tile"><span>ضريبة دخل فقط</span><b class="num">' + int(n((c) => !c.gst_cycle)) + '</b></div><div class="tile is-info"><span>الدورة الزوجية</span><b class="num">' + int(n((c) => c.gst_cycle === 'even')) + '</b></div><div class="tile"><span>الدورة الفردية</span><b class="num" style="color:var(--gold-ink)">' + int(n((c) => c.gst_cycle === 'odd')) + '</b></div></div>';
     const search = '<label class="field grow"><span>بحث</span><input type="search" id="client-q" data-in="client-q" value="' + esc(UI.clientQ) + '" placeholder="اسم العميل أو الرقم الضريبي أو المديرية"></label>';
     const sels = '<label class="field"><span>المحاسب المسؤول</span><select id="client-emp" data-ch="client-emp"><option value="">الكل</option>' + S.employees.map((e) => '<option value="' + esc(e.id) + '"' + (e.id === UI.clientEmp ? ' selected' : '') + '>' + esc(e.name) + '</option>').join('') + '<option value="none"' + (UI.clientEmp === 'none' ? ' selected' : '') + '>بدون مسؤول</option></select></label>' +
-      '<label class="field"><span>الدورة</span><select id="client-cycle" data-ch="client-cycle"><option value="">الكل</option><option value="even"' + (UI.clientCycle === 'even' ? ' selected' : '') + '>زوجية</option><option value="odd"' + (UI.clientCycle === 'odd' ? ' selected' : '') + '>فردية</option><option value="none"' + (UI.clientCycle === 'none' ? ' selected' : '') + '>غير مسجّل بالمبيعات</option></select></label>' +
+      '<label class="field"><span>الدورة</span><select id="client-cycle" data-ch="client-cycle"><option value="">الكل</option><option value="even"' + (UI.clientCycle === 'even' ? ' selected' : '') + '>زوجية</option><option value="odd"' + (UI.clientCycle === 'odd' ? ' selected' : '') + '>فردية</option><option value="none"' + (UI.clientCycle === 'none' ? ' selected' : '') + '>ضريبة دخل فقط (غير مسجّل بالمبيعات)</option></select></label>' +
       '<label class="field"><span>النوع</span><select id="client-kind" data-ch="client-kind">' + opts(CLIENT_K, UI.clientKind, 'الكل') + '</select></label>';
     const tools = '<div class="toolbar">' + search + sels + '</div>';
     if (isPhone()) return clientsP(all, list, t, '<div class="toolbar">' + sels + '</div>');
@@ -1644,7 +1679,7 @@ function parseTaskSpeech(text, ctx) {
       const tbl = '<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="n">#</th><th>العميل</th><th>النوع</th><th>الرقم الضريبي</th><th>مديرية المكلف</th><th>الدورة</th><th>حالة الإقرار</th><th>ملاحظات</th><th class="n">مهام مفتوحة</th><th></th></tr></thead><tbody>' +
         g.rows.map((c, i) => { const open = S.tasks.filter((x) => x.client_id === c.id && x.status !== 'done'); const late = open.filter((x) => x.due && x.due < t).length;
           return '<tr><td class="n muted">' + (i + 1) + '</td><td class="wrap"><b>' + esc(c.name) + '</b>' + (c.contact || c.phone ? '<div class="muted" style="font-size:var(--t-xs)">' + esc([c.contact, c.phone].filter(Boolean).join(' · ')) + '</div>' : '') + '</td><td>' + esc(CLIENT_K[c.kind] || '—') + '</td><td class="num">' + esc(c.tax_no || '—') + '</td><td>' + esc(c.directorate || '—') + '</td><td>' + (GST[c.gst_cycle] ? chip(GST[c.gst_cycle]) : '<span class="muted">—</span>') + '</td><td class="wrap">' + esc(c.doc_status || '—') + '</td><td class="wrap muted">' + esc(c.notes || '') + '</td><td class="n">' + int(open.length) + (late ? ' <span class="due-bad">(' + late + ' متأخرة)</span>' : '') + '</td><td><div class="actions"><button class="btn btn-sm" data-act="client-tasks" data-id="' + esc(c.id) + '">المهام</button><button class="btn btn-sm" data-act="client-edit" data-id="' + esc(c.id) + '">تعديل</button></div></td></tr>'; }).join('') + '</tbody></table></div>';
-      out += card((g.e ? esc(g.e.name) : 'بدون مسؤول') + ' <span class="chip plain num">' + int(g.rows.length) + ' عميل</span>', tbl, { flush: true, note: 'زوجية ' + int(ev) + ' · فردية ' + int(od) });
+      out += card(groupLabel(g) + ' <span class="chip plain num">' + int(g.rows.length) + ' عميل</span>', tbl, { flush: true, note: 'زوجية ' + int(ev) + ' · فردية ' + int(od) });
     }
     return out;
   }
@@ -1789,13 +1824,17 @@ function parseTaskSpeech(text, ctx) {
     const n = (f) => all.filter(f).length, q = UI.clientQ.trim();
     let out = head('العملاء', '', '<button class="btn btn-primary" data-act="client-new">' + ic('plus') + 'عميل جديد</button><button class="btn" data-act="xlsx-clients">Excel</button>');
     if (!all.length) return out + card('', empty('لا يوجد عملاء بعد', 'أضف عملاء المكتب لتربط بهم المهام ومواعيد الإقرارات.'));
-    out += stats([['كل العملاء', int(all.length)], ['شركات', int(n((c) => c.kind === 'company'))], ['مؤسسات فردية', int(n((c) => c.kind === 'est'))], ['الدورة الزوجية', int(n((c) => c.gst_cycle === 'even')), 'info'], ['الدورة الفردية', int(n((c) => c.gst_cycle === 'odd')), 'gold'], ['يظهر الآن', int(list.length)]]);
+    out += stats([['كل العملاء', int(all.length)], ['شركات', int(n((c) => c.kind === 'company'))], ['أفراد', int(n((c) => c.kind === 'person'))], ['الدورة الزوجية', int(n((c) => c.gst_cycle === 'even')), 'info'], ['الدورة الفردية', int(n((c) => c.gst_cycle === 'odd')), 'gold'], ['ضريبة دخل فقط', int(n((c) => !c.gst_cycle))]]);
     const active = [UI.clientEmp, UI.clientCycle, UI.clientKind].filter(Boolean).length;
     out += card('', '<label class="field"><span>بحث</span><input type="search" id="client-q" data-in="client-q" value="' + esc(UI.clientQ) + '" placeholder="اسم العميل أو الرقم الضريبي"></label><div style="margin-top:.6rem">' + fold('cl:f', 'تصفية' + (active ? ' <b class="num">(' + active + ')</b>' : ''), tools, !!active) + '</div>');
     if (!list.length) return out + card('', empty('لا يوجد عملاء مطابقون', 'غيّر البحث أو عوامل التصفية.'));
+    if (list.length < all.length) out += '<p class="note" style="margin:0">يظهر <span class="num">' + int(list.length) + '</span> من <span class="num">' + int(all.length) + '</span> عميل.</p>';
     const groups = clientGroups(list);
     for (const g of groups) {
-      out += sect('cg:' + (g.e ? g.e.id : 'none') + (q ? ':q' : ''), (g.e ? esc(shortName(g.e.name)) : 'بدون مسؤول') + ' <span class="chip plain num">' + int(g.rows.length) + '</span>', recs(g.rows.map((c) => {
+      // a folded group draws nothing until it is opened, and an opened one draws its cards CLIENT_STEP at a time
+      const k = 'cg:' + (g.e ? g.e.id : 'none') + (q ? ':q' : ''), opened = isOpen(k, !!q || groups.length === 1), lim = UI.clientShow[k] || CLIENT_STEP;
+      const more = g.rows.length > lim ? '<button class="btn" style="width:100%;margin-top:.55rem" data-act="client-more" data-k="' + esc(k) + '">عرض ' + int(Math.min(CLIENT_STEP, g.rows.length - lim)) + ' أخرى (باقي <span class="num">' + int(g.rows.length - lim) + '</span>)</button>' : '';
+      out += sect(k, groupLabel(g, true) + ' <span class="chip plain num">' + int(g.rows.length) + '</span>', !opened ? '' : recs(g.rows.slice(0, lim).map((c) => {
         const open = S.tasks.filter((x) => x.client_id === c.id && x.status !== 'done'), late = open.filter((x) => x.due && x.due < t).length;
         return rec({
           k: 'cl:' + c.id, title: esc(c.name), sub: [c.tax_no ? 'الرقم الضريبي <span class="num">' + esc(c.tax_no) + '</span>' : '', esc(CLIENT_K[c.kind] || '')].filter(Boolean).join(' · '),
@@ -1803,10 +1842,11 @@ function parseTaskSpeech(text, ctx) {
           more: kv([c.directorate ? ['مديرية المكلف', esc(c.directorate)] : null, c.doc_status ? ['حالة الإقرار', esc(c.doc_status)] : null, c.contact ? ['المسؤول لدى العميل', esc(c.contact)] : null, c.phone ? ['الهاتف', '<bdi class="num">' + esc(c.phone) + '</bdi>'] : null, c.notes ? ['ملاحظات', esc(c.notes)] : null]) +
             '<div class="rec-a"><button class="btn btn-primary" data-act="task-new" data-client="' + esc(c.id) + '">' + ic('plus') + 'مهمة</button><button class="btn" data-act="client-tasks" data-id="' + esc(c.id) + '">المهام</button><button class="btn" data-act="client-edit" data-id="' + esc(c.id) + '">تعديل</button></div>',
         });
-      })), { open: !!q || groups.length === 1, flush: true });
+      })) + more, { open: !!q || groups.length === 1, flush: true, lazy: true });
     }
     return out;
   }
+  const CLIENT_STEP = 60;
   function employeesP(list, t, missingFp, missingSal) {
     let out = head('الموظفون', '', '<button class="btn btn-primary" data-act="emp-new">' + ic('plus') + 'إضافة موظف</button>');
     if (missingFp || missingSal) out += '<div class="banner gold">' + (missingFp ? '<span>' + int(missingFp) + ' موظف بدون رقم بصمة.</span>' : '') + (missingSal ? '<span>' + int(missingSal) + ' موظف بدون راتب أساسي.</span>' : '') + '</div>';
@@ -2573,6 +2613,7 @@ function parseTaskSpeech(text, ctx) {
       setTimeout(async () => { closeModal(); const x = S.tasks.find((y) => y.id === id); if (!x) return; const { id: _id, ...rest } = x; try { await put('tasks/' + id, { ...rest, wa_at: new Date().toISOString() }); } catch (e) { /* the message is on its way regardless */ } }, 400);
     },
     'more': () => moreSheet(),
+    'client-more': (el) => { UI.clientShow[el.dataset.k] = (UI.clientShow[el.dataset.k] || CLIENT_STEP) + CLIENT_STEP; render(); },
     'task-edit': (el) => taskForm(S.tasks.find((x) => x.id === el.dataset.id)),
     'task-del': (el) => confirmBox('حذف المهمة', 'ستُحذف المهمة نهائياً.', 'حذف', async () => { await del('tasks/' + el.dataset.id); toast('حُذفت المهمة'); }),
     'pay-slip': (el) => slipForm(el.dataset.v),
@@ -2645,7 +2686,7 @@ function parseTaskSpeech(text, ctx) {
   viewEl.addEventListener('change', (ev) => { const cf = ev.target.closest('#cfg-form'); if (cf) { UI.cfgDirty = true; saveCfg(cf); } const t = ev.target.closest('[data-ch]'); if (t && CH[t.dataset.ch]) CH[t.dataset.ch](t, ev); });
   viewEl.addEventListener('input', (ev) => { if (ev.target.closest('#cfg-form')) UI.cfgDirty = true; const t = ev.target.closest('[data-in]'); if (t && IN[t.dataset.in]) IN[t.dataset.in](t, ev); });
   document.getElementById('tabbar').addEventListener('click', (ev) => { const t = ev.target.closest('[data-act]'); if (t && ACT[t.dataset.act]) ACT[t.dataset.act](t, ev); });
-  viewEl.addEventListener('toggle', (ev) => { const d = ev.target; if (d.dataset && d.dataset.k) UI.openK[d.dataset.k] = d.open; }, true);
+  viewEl.addEventListener('toggle', (ev) => { const d = ev.target; if (d.dataset && d.dataset.k) { UI.openK[d.dataset.k] = d.open; if (d.dataset.lazy && d.open) schedule(); } }, true);
   viewEl.addEventListener('keydown', (ev) => { const el = ev.target; if ((ev.key === 'Enter' || ev.key === ' ') && el.getAttribute && el.getAttribute('role') === 'button') { ev.preventDefault(); el.click(); } });
   if (PHONE.addEventListener) PHONE.addEventListener('change', () => render(true)); else if (PHONE.addListener) PHONE.addListener(() => render(true)); // older iPhones
   /* Settings save themselves on every change; the button is kept for reassurance. */

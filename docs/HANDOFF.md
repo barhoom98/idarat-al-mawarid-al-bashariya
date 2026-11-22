@@ -43,6 +43,11 @@ The order follows `git log`:
 
 16. **Own address** (18 Nov). The app moved to https://hr.alabed-jo.com/ at the owner's request («alabed» instead of «barhoom98» in the link). The domain and the staff mailboxes (Microsoft 365 Email Plus) are with GoDaddy. Each person had to sign in again at the new address and re-add the home-screen icon.
 
+17. **Income-tax clients and better voice reading** (22 Nov, `APP_VERSION` 2026.11.22). The owner sent «كشف تسليم كشوف التقدير الذاتي للسنة المالية 2025» (18 directorates, 571 rows) and asked for every company, establishment and person not yet in the system, with name and tax number only, so tasks can name them.
+    - 454 added (`source` «ملف ضريبة الدخل 2025», no accountant, not sales); the 116 already present as sales clients were left untouched; 572 clients in all.
+    - In the sheet, one tax number is given for two different people: both were added, the second with an id ending in `-2`. 9 rows have no tax number (ids `cl-x…`), and one more without a number was skipped as most likely an existing client. The owner was told which (names stay out of this public repo).
+    - Voice: the manager opens with «صباح الخير / مساء الخير», which matched «شركة تل الخير». See `VOICE_GREET` and the client rules in `CLAUDE.md`.
+
 ## Live system facts (12 Nov 2026)
 
 **Employees** (`emp-01` … `emp-08`):

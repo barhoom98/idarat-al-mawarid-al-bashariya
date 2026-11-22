@@ -137,4 +137,33 @@ test('voice task: a spoken sentence becomes the task fields', () => {
   assert.deepEqual(['+962 7 9000 0001', '0790000001', '790000001', '00962790000001', '٠٧٩٠٠٠٠٠٠١', '123'].map(P.waNumber), ['962790000001', '962790000001', '962790000001', '962790000001', '962790000001', '']);
 });
 
+test('voice task: greetings are skipped, and a client needs more than one ordinary word', () => {
+  const employees = [
+    { id: 'e2', name: 'سامر خليل محمد الحلبي' }, { id: 'e3', name: 'محمد خليل محمد أبو حمدان' }, { id: 'e4', name: 'يوسف محمد سالم العمري' },
+    { id: 'e5', name: 'هبة مأمون يوسف النمر' }, { id: 'e6', name: 'دينا مأمون يوسف النمر' }, { id: 'e7', name: 'سلمى حسن صالح العلي' },
+  ];
+  const clients = [
+    { id: 'c1', name: 'شركة بستان الخير للخضار والفواكه' }, { id: 'c2', name: 'شركة الأمل لصناعة البلاستيك' }, { id: 'c3', name: 'نصر علي أبو حمدان' },
+    { id: 'c4', name: 'يوسف إسماعيل غزال' }, { id: 'c5', name: 'محمد علي محمود الشريف' }, { id: 'c6', name: 'محمود علي محمود الشريف' }, { id: 'c7', name: 'شركة محمود الشريف وإخوانه' },
+    { id: 'c8', name: 'عيسى رؤووف الدباغ' }, { id: 'c9', name: 'كريم عيسى رؤوف الدباغ' }, { id: 'c10', name: 'شركة النور للتجارة' },
+  ];
+  for (let i = 0; i < 500; i++) clients.push({ id: 'f' + i, name: (i % 3 ? 'محمد ' : 'شركة ') + 'اسم' + i + ' احمد علي للتجارة' }); // an office-sized list
+  const say = (text) => P.parseTaskSpeech(text, { today: '2026-11-22', employees, clients });
+  const has = (r, want) => { for (const k of Object.keys(want)) assert.deepEqual(r[k], want[k], k + ' in «' + r.title + '»'); };
+  // «صباح الخير» is not «شركة بستان الخير»; «يا سامر» names the employee; neither stays in the title
+  has(say('صباح الخير يا سامر، بدي منك إقرار ضريبة الدخل لشركة الأمل عن 2024'), { employee_id: 'e2', client_id: 'c2', title: 'إقرار ضريبة الدخل لشركة الأمل عن 2024', years: [2024] });
+  has(say('صباح الخير'), { title: '', client_id: '', clientAlt: [], employee_id: '' });
+  // the whole name said in order wins over a brother who shares most of it
+  has(say('مساء الخير، الله يعطيك العافية، هبة بكرة الساعة عشرة كشف التقدير الذاتي لمحمد علي محمود الشريف'), { employee_id: 'e5', client_id: 'c5', time: '10:00', due: '2026-11-23', title: 'كشف التقدير الذاتي لمحمد علي محمود الشريف' });
+  has(say('محمد علي محمود الشريف إقرار دخل 2025 على يوسف'), { client_id: 'c5', employee_id: 'e4' }); // a client named first is not the employee «محمد»
+  // the employee greeted first is the employee, even when a client shares the first name
+  has(say('يعطيك العافية محمد، ملف نصر أبو حمدان، براءة ذمة'), { employee_id: 'e3', client_id: 'c3', title: 'ملف نصر أبو حمدان، براءة ذمة' });
+  has(say('السلام عليكم، دينا، إقرار الدخل ليوسف غزال لو سمحتي'), { employee_id: 'e6', client_id: 'c4', title: 'إقرار الدخل ليوسف غزال' });
+  // «رؤوف» finds «رؤووف»; the father and the son are both offered rather than guessed
+  assert.deepEqual(say('إقرار الدخل لعيسى رؤوف الدباغ').clientAlt.slice(0, 2), ['c8', 'c9']);
+  // one ordinary word picks a client only after «شركة …»
+  has(say('سلمى تتابع النور مع الدائرة'), { client_id: '' });
+  has(say('سلمى تتابع شركة النور مع الدائرة'), { client_id: 'c10' });
+});
+
 console.log('\n' + n + ' groups passed');

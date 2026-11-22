@@ -14,6 +14,7 @@ const stub = `(() => {
   const names = ['المدير العام','موظف أول','موظف ثانٍ','موظف ثالث','موظفة رابعة','موظفة خامسة','موظفة سادسة'];
   names.forEach((n, i) => T.employees.push({ id: 'emp-0' + (i + 1), data: { annual_days: i === 1 ? 21 : 14, leave_open_balance: i === 1 ? 27 : 0, leave_open_date: '2026-10-31', name: n, title: i ? 'محاسب' : 'المدير العام', phone: i === 6 ? '' : '+962 7 9000 000' + (i + 1), fp_id: String(i + 1), basic_salary: [1000,600,600,600,500,500,500][i], allowances: 30, ssc: true, track: true, active: true, order: i + 1, hire_date: '2022-03-01' } }));
   T.employees[6].data.field_from = '2026-10-28'; T.employees[6].data.field_to = '2026-12-31';
+  for (let i = 1; i <= 450; i++) T.clients.push({ id: 'cx' + i, data: { name: 'عميل ' + i + ' للاختبار', kind: i % 4 ? 'person' : 'company', tax_no: String(9000000 + i), employee_id: '', gst_cycle: '', income_tax: true } }); // an office-sized list of income-tax files
   let seed = 3; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   for (let d = 1; d <= 27; d++) { const ds = '2026-10-' + pad(d); const dw = new Date(ds + 'T00:00:00Z').getUTCDay(); if (dw === 5 && d !== 23) continue;
     for (let i = 1; i <= 7; i++) { if (rnd() < 0.05) continue; const a = 8 * 60 + 15 + Math.floor(rnd() * 32); const end = dw === 4 ? 870 : 1050; const b = end + Math.floor(rnd() * 70) - 10;
@@ -94,6 +95,14 @@ const stub = `(() => {
       for (const tab of ['month', 'import', 'day']) { await p.evaluate((v) => document.querySelector('[data-act="att-tab"][data-v="' + v + '"]').click(), tab); await p.waitForTimeout(250); await sideways('attendance/' + tab); }
       await p.evaluate(() => document.querySelector('[data-act="att-tab"][data-v="month"]').click()); await p.waitForTimeout(200);
       await p.evaluate(() => document.querySelector('[data-act="att-emp"]').click()); await p.waitForTimeout(250); await sideways('attendance/month of one employee');
+      await p.goto('http://app.local/#clients'); await p.waitForTimeout(400);
+      const before = await p.$$eval('#view .rec', (x) => x.length);
+      await p.evaluate(() => { const d = [...document.querySelectorAll('#view details.sect')].pop(); d.open = true; }); await p.waitForTimeout(400);
+      const opened = await p.$$eval('#view .rec', (x) => x.length);
+      await p.evaluate(() => document.querySelector('[data-act="client-more"]').click()); await p.waitForTimeout(300);
+      const more = await p.$$eval('#view .rec', (x) => x.length);
+      if (before > 5 || opened !== before + 60 || more !== opened + 60) errs.push('phone: income-tax group cards ' + [before, opened, more].join(' → '));
+      await sideways('clients with 451 files');
       await p.evaluate(() => document.querySelector('#tabbar [data-act="more"]').click()); await p.waitForTimeout(200);
       await p.evaluate(() => document.querySelector('.modal a.app-tile[href="#clients"]').click()); await p.waitForTimeout(400);
       const went = await p.evaluate(() => location.hash === '#clients' && !document.querySelector('.modal') && document.querySelector('#tabbar [data-act="more"]').getAttribute('aria-current') === 'page');
