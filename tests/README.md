@@ -1,11 +1,13 @@
 # Tests
 
-Run both before pushing a change to `index.html`:
+Run them before pushing a change to `index.html` or `supabase/functions`:
 
 ```bash
 node tests/calc.test.js      # attendance, overtime, field work, fingerprint numbers, and spoken-task sentences (no dependencies)
+node tests/functions.test.mjs # edge functions: Web Push encryption and VAPID signature, which tasks get a reminder, the calendar file
 node tests/smoke.js [shots]  # every page on a desktop and a phone screen; fails on any JavaScript error,
-                             # on a phone page that scrolls sideways, or if a voice task does not end in a WhatsApp link
+                             # on a phone page that scrolls sideways, if a voice task does not end in a WhatsApp link
+                             # with a calendar link, or if the calendar page (cal.html) does not open
 ```
 
 `calc.test.js` runs the `/*PURE-START*/ … /*PURE-END*/` block of `index.html` directly. Add a case to it when a calculation rule changes.

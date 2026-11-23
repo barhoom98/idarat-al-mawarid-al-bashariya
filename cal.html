@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>موعد مهمة — الألفية</title>
+<meta name="theme-color" content="#26282C">
+<link rel="icon" type="image/png" href="icons/favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600&display=swap">
+<style>
+/* The employee's page for one task, opened from the WhatsApp notice: the details, and buttons that put it in the phone's calendar
+   with an alarm the day before. Data comes from the edge function task-cal (needs the task's own token from the link). */
+:root {
+  --bg: #ECEBE7; --sheet: #FFFFFF; --ink: #212328; --muted: #65635E; --line: #DCD9D1;
+  --gold: #C9A24E; --gold-ink: #85641F; --gold-soft: #F5ECD6; --on-gold: #1F2023;
+  --char: #26282C; --char-ink: #EEE9DE; --char-muted: #A6A39C;
+  --bad: #AE3636; --bad-soft: #F6E0DE; --ok: #2C7549; --ok-soft: #E0EFE5; --warn: #9C6210; --warn-soft: #F7EAD2;
+  --f-ui: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
+  --f-display: "Readex Pro", "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141517; --sheet: #1D1F22; --ink: #ECE8DF; --muted: #A19E97; --line: #34373D;
+  --gold: #D6B163; --gold-ink: #E3C47F; --gold-soft: #393022; --on-gold: #17181A;
+  --char: #0F1012; --char-ink: #ECE8DF; --char-muted: #9A978F;
+  --bad: #EC8080; --bad-soft: #3D2323; --ok: #6EC593; --ok-soft: #1D3226; --warn: #E6B060; --warn-soft: #3A2E19; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #141517; --sheet: #1D1F22; --ink: #ECE8DF; --muted: #A19E97; --line: #34373D;
+  --gold: #D6B163; --gold-ink: #E3C47F; --gold-soft: #393022; --on-gold: #17181A;
+  --char: #0F1012; --char-ink: #ECE8DF; --char-muted: #9A978F;
+  --bad: #EC8080; --bad-soft: #3D2323; --ok: #6EC593; --ok-soft: #1D3226; --warn: #E6B060; --warn-soft: #3A2E19; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: .9375rem; line-height: 1.6; -webkit-text-size-adjust: 100%; }
+header { background: var(--char); color: var(--char-ink); padding: calc(env(safe-area-inset-top) + 1rem) 16px 1.1rem; }
+.brand { display: flex; align-items: center; gap: .75rem; max-width: 34rem; margin: 0 auto; }
+.brand img { width: 44px; height: 44px; border-radius: 10px; flex: none; }
+.brand b { display: block; font-family: var(--f-display); font-weight: 600; font-size: 1.05rem; color: var(--gold); line-height: 1.25; }
+.brand small { color: var(--char-muted); font-size: .8125rem; }
+main { max-width: 34rem; margin: 0 auto; padding: 1rem 16px calc(env(safe-area-inset-bottom) + 2rem); }
+.card { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.1rem 1rem; }
+.hello { margin: 0 0 .2rem; color: var(--muted); font-size: .875rem; }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: 1.35rem; line-height: 1.4; margin: 0 0 .8rem; overflow-wrap: anywhere; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: .45rem 1rem; margin: 0; }
+dt { color: var(--muted); font-size: .8125rem; padding-top: .1rem; }
+dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.when { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; background: var(--gold-soft); border-radius: 9px; padding: .65rem .8rem; margin: 0 0 1rem; }
+.when b { font-family: var(--f-display); font-weight: 600; font-size: 1.05rem; }
+.chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .05rem .55rem; border-radius: 99px; vertical-align: middle; }
+.chip.bad { background: var(--bad-soft); color: var(--bad); } .chip.warn { background: var(--warn-soft); color: var(--warn); } .chip.ok { background: var(--ok-soft); color: var(--ok); }
+.num { font-variant-numeric: tabular-nums; }
+.btns { display: grid; gap: .6rem; margin-top: 1rem; }
+.btn { display: flex; align-items: center; justify-content: center; gap: .55rem; min-height: 3.1rem; padding: .6rem 1rem; border-radius: 10px; border: 1px solid var(--line); background: var(--sheet); color: var(--ink); font: inherit; font-weight: 600; text-decoration: none; text-align: center; }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: var(--on-gold); }
+.btn svg { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.note { color: var(--muted); font-size: .8125rem; margin: .8rem 0 0; }
+.note b { color: var(--ink); font-weight: 600; }
+.banner { border-radius: 9px; padding: .6rem .8rem; margin: 0 0 1rem; font-size: .875rem; }
+.banner.ok { background: var(--ok-soft); color: var(--ok); }
+.msg { text-align: center; padding: 2rem 1rem; color: var(--muted); }
+.msg b { display: block; color: var(--ink); font-family: var(--f-display); font-size: 1.1rem; margin-bottom: .3rem; }
+.foot { text-align: center; color: var(--muted); font-size: .75rem; margin-top: 1.2rem; }
+</style>
+</head>
+<body>
+<header><div class="brand"><img src="icons/icon-192.png" alt=""><div><b>الألفية</b><small>للخدمات الضريبية والمحاسبية</small></div></div></header>
+<main id="root"><div class="card msg">جارٍ فتح المهمة…</div></main>
+<script src="config.js"></script>
+<script>
+(() => {
+  'use strict';
+  const root = document.getElementById('root');
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const q = new URLSearchParams(location.search), k = q.get('k') || '', t = q.get('t') || '';
+  const cfg = window.HR_CONFIG || {};
+  const api = cfg.url + '/functions/v1/task-cal?k=' + encodeURIComponent(k) + '&t=' + encodeURIComponent(t);
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const fail = (title, text) => { root.innerHTML = '<div class="card msg"><b>' + title + '</b>' + text + '</div>'; };
+  const day = (d) => new Intl.DateTimeFormat('ar-JO-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(d + 'T00:00:00Z'));
+  const t12 = (hm) => { const [h, m] = hm.split(':').map(Number); return ((h % 12) || 12) + ':' + String(m).padStart(2, '0') + (h < 12 ? ' صباحاً' : ' مساءً'); };
+  const plus = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10).replace(/-/g, '');
+  const ICON = {
+    cal: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M12 13v4M10 15h4"/></svg>',
+    g: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M14.5 14.2h-2.6M14.6 14.2a2.6 2.6 0 1 1-.8-1.9"/></svg>',
+  };
+  function google(x) {
+    const hhmm = x.time ? x.time.replace(':', '') : '';
+    const end = x.time ? String(Math.min(23, Number(x.time.slice(0, 2)) + 1)).padStart(2, '0') + x.time.slice(3, 5) : '';
+    const dates = x.time ? x.due.replace(/-/g, '') + 'T' + hhmm + '00/' + x.due.replace(/-/g, '') + 'T' + end + '00' : x.due.replace(/-/g, '') + '/' + plus(x.due, 1);
+    const details = [x.client ? 'العميل: ' + x.client : '', x.years ? 'السنوات المطلوبة: ' + x.years : '', x.notes ? 'ملاحظات: ' + x.notes : '', x.company].filter(Boolean).join('\n');
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(x.title + (x.client ? ' — ' + x.client : '')) +
+      '&dates=' + dates + '&ctz=Asia/Amman&details=' + encodeURIComponent(details);
+  }
+  function show(x) {
+    document.title = x.title + ' — موعد مهمة';
+    const pr = { urgent: ['عاجلة', 'bad'], high: ['مهمة', 'warn'] }[x.priority];
+    const rows = [x.client ? ['العميل', esc(x.client)] : null, x.tax_no ? ['الرقم الضريبي', '<span class="num">' + esc(x.tax_no) + '</span>'] : null,
+      x.years ? ['السنوات المطلوبة', esc(x.years)] : null, x.notes ? ['ملاحظات', esc(x.notes).replace(/\n/g, '<br>')] : null].filter(Boolean);
+    const ics = '<a class="btn' + (ios ? ' primary' : '') + '" href="' + esc(api + '&f=ics') + '">' + ICON.cal + 'إضافة إلى تقويم الهاتف</a>';
+    const gc = '<a class="btn' + (ios ? '' : ' primary') + '" href="' + esc(google(x)) + '" target="_blank" rel="noopener">' + ICON.g + 'إضافة إلى تقويم Google</a>';
+    root.innerHTML = '<div class="card">' +
+      (x.employee ? '<p class="hello">مرحباً ' + esc(x.employee.trim().split(/\s+/)[0]) + '، هذه مهمتك:</p>' : '') +
+      '<h1>' + esc(x.title) + (pr ? ' <span class="chip ' + pr[1] + '">' + pr[0] + '</span>' : '') + '</h1>' +
+      (x.done ? '<div class="banner ok">هذه المهمة منجزة. شكراً لك.</div>' : '') +
+      '<div class="when"><span>الموعد</span><b>' + esc(day(x.due)) + '</b>' + (x.time ? '<b class="num">الساعة ' + esc(t12(x.time)) + '</b>' : '') + '</div>' +
+      (rows.length ? '<dl>' + rows.map(([a, b]) => '<dt>' + a + '</dt><dd>' + b + '</dd>').join('') + '</dl>' : '') +
+      (x.done ? '' : '<div class="btns">' + (ios ? ics + gc : gc + ics) + '</div>' +
+        '<p class="note">' + (ios
+          ? 'اضغط <b>«إضافة إلى تقويم الهاتف»</b> ثم <b>«إضافة الكل»</b>. ينبّهك التقويم بصوت قبل الموعد بيوم.'
+          : 'اضغط <b>«إضافة إلى تقويم Google»</b> ثم <b>«حفظ»</b>، واختر في الإشعار <b>«قبل يوم واحد»</b>. على هواتف سامسونج يعمل زر «تقويم الهاتف» أيضاً، وفيه التنبيه قبل يوم جاهز.') + '</p>') +
+      '</div><p class="foot">' + esc(x.company || '') + '</p>';
+  }
+  if (!k || t.length < 16 || !cfg.url) { fail('الرابط ناقص', 'افتح الرابط كما وصلك في رسالة الواتساب.'); return; }
+  fetch(api + '&f=json', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then(show, (st) => (st === 404
+      ? fail('لم نجد هذه المهمة', 'ربما حُذفت أو تغيّر رابطها. اطلب من المدير إرسال الإشعار من جديد.')
+      : fail('تعذّر الاتصال', 'تأكد من الإنترنت ثم أعد فتح الرابط.')));
+})();
+</script>
+</body>
+</html>

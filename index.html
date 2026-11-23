@@ -431,6 +431,7 @@ const DEFAULTS = {
   company_ar: 'شركة الألفية للخدمات الضريبية والمحاسبية',
   company_en: 'Millennium Tax and Accounting Services',
   schedule: { 6: { on: true, start: '08:30', end: '17:30' }, 0: { on: true, start: '08:30', end: '17:30' }, 1: { on: true, start: '08:30', end: '17:30' }, 2: { on: true, start: '08:30', end: '17:30' }, 3: { on: true, start: '08:30', end: '17:30' }, 4: { on: true, start: '08:30', end: '14:30' }, 5: { on: false, start: '08:30', end: '14:30' } },
+  remind_hour: 9, // task reminders (push to the manager's devices) go out at this hour, Amman time, the day before
   grace: 15, ot_min: 15, punch_gap: 10, ot_rate: 1.25, ot_rate_off: 1.5, day_divisor: 30, hour_divisor: 8,
   ssc_emp: 7.5, ssc_er: 14.25, ssc_cap: 3733, // 2026 cap set by the Social Security Corporation (yearly)
   ded_absence: true, ded_unpaid: true, ded_late: false,
@@ -1002,7 +1003,7 @@ function parseTaskSpeech(text, ctx) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.11.23';
+  const APP_VERSION = '2026.11.23-2';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -1624,10 +1625,14 @@ function parseTaskSpeech(text, ctx) {
     const lines = ['*المهمة:* ' + x.title, c ? '*العميل:* ' + c.name : '', c && c.tax_no ? '*الرقم الضريبي:* ' + c.tax_no : '', x.years ? '*السنوات المطلوبة:* ' + x.years : '',
       x.due ? '*الموعد:* ' + fullDay(x.due) + (x.time ? ' الساعة ' + t12(x.time) : '') : '', '*الأولوية:* ' + (TASK_P[x.priority] || TASK_P.normal)[0],
       x.status && x.status !== 'new' && TASK_S[x.status] ? '*الحالة:* ' + TASK_S[x.status][0] : '', x.category ? '*التصنيف:* ' + x.category : '', x.notes ? '*ملاحظات:* ' + x.notes : ''].filter(Boolean);
-    return [x.wa_at ? '*تذكير بمهمة*' : '*مهمة جديدة*', 'مرحباً ' + firstName(e && e.name) + '،', ''].concat(lines, ['', S.settings.company_ar]).join('\n');
+    const cal = calLink(x);
+    return [x.wa_at ? '*تذكير بمهمة*' : '*مهمة جديدة*', 'مرحباً ' + firstName(e && e.name) + '،', ''].concat(lines, cal ? ['', '*أضف الموعد لتقويم هاتفك لينبّهك قبل يوم:*', cal] : [], ['', S.settings.company_ar]).join('\n');
   }
-  function waSheet(id) {
-    const x = S.tasks.find((y) => y.id === id);
+  /* The employee's calendar link (cal.html on this site; edge function task-cal checks the task's cal_token). */
+  const calLink = (x) => (x.due && x.cal_token ? new URL('cal.html?k=' + encodeURIComponent(x.id) + '&t=' + x.cal_token, location.href).href : '');
+  const calToken = () => { const b = new Uint8Array(16); crypto.getRandomValues(b); return Array.from(b, (v) => v.toString(16).padStart(2, '0')).join(''); };
+  async function waSheet(id) {
+    let x = S.tasks.find((y) => y.id === id);
     if (!x) return;
     const e = empById(x.employee_id);
     if (!e) { toast('حدّد الموظف المسؤول عن المهمة أولاً من «تعديل».', true); return; }
@@ -1646,12 +1651,101 @@ function parseTaskSpeech(text, ctx) {
       });
       return;
     }
+    if (x.due && !x.cal_token) { // first notice for this task: give it a calendar link
+      const { id: _id, ...rest } = x;
+      try { await put('tasks/' + id, { ...rest, cal_token: calToken() }); x = S.tasks.find((y) => y.id === id) || x; } catch (err) { /* the message goes without the calendar link */ }
+    }
     const msg = taskMsg(x);
     openModal({
       title: 'إشعار واتساب إلى ' + esc(shortName(e.name)), cancel: 'لاحقاً',
       body: '<p class="note" style="margin:0">تُفتح الرسالة في واتساب على الرقم <bdi class="num">+' + num + '</bdi>، واضغط «إرسال» هناك. يمكنك تعديل النص قبل الفتح.</p><textarea class="wa-msg" id="wa-text" data-num="' + num + '" aria-label="نص الرسالة">' + esc(msg) + '</textarea>',
       footLeft: '<a class="btn btn-wa" id="wa-go" href="' + esc(waLink(num, msg)) + '" target="_blank" rel="noopener" data-act="wa-go" data-id="' + esc(id) + '">' + ic('wa') + 'فتح واتساب للإرسال</a>',
     });
+  }
+
+  /* ---------- task reminders on this device: Web Push from edge function task-reminders (run hourly by pg_cron) ---------- */
+  const PUSH = { state: '', sub: null, devices: [], busy: false }; // state: on | off | denied | ios | none ('' = not checked yet)
+  const isIOS = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const pushReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((ok) => setTimeout(() => ok(null), 8000))]);
+  const keyBytes = (k) => Uint8Array.from(atob(k.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (k.length % 4)) % 4)), (c) => c.charCodeAt(0));
+  const deviceName = () => { const u = navigator.userAgent; return (isIOS() ? (/iPad/.test(u) ? 'iPad' : 'iPhone') : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows' : /Mac/.test(u) ? 'Mac' : 'جهاز') + (/Edg\//.test(u) ? ' · Edge' : /CriOS|Chrome\//.test(u) ? ' · Chrome' : /Firefox|FxiOS/.test(u) ? ' · Firefox' : /Safari/.test(u) ? ' · Safari' : ''); };
+  async function pushDevices() { const { data } = await sb.from('push_subs').select('endpoint,device,created_at,last_ok,last_error'); PUSH.devices = data || []; }
+  async function pushSave(sub) {
+    const { error } = await sb.from('push_subs').upsert({ endpoint: sub.endpoint, data: sub.toJSON(), device: deviceName(), email: String((S.user && S.user.email) || '') });
+    if (error) throw error;
+  }
+  /* On every start: where this device stands, and the server keeps this device's current subscription (the push service can renew it). */
+  async function pushCheck() {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) PUSH.state = isIOS() ? 'ios' : 'none';
+      else if (Notification.permission === 'denied') PUSH.state = 'denied';
+      else {
+        const reg = await pushReady();
+        PUSH.sub = reg ? await reg.pushManager.getSubscription() : null;
+        PUSH.state = PUSH.sub ? 'on' : 'off';
+        if (PUSH.sub) await pushSave(PUSH.sub);
+      }
+      await pushDevices();
+    } catch (e) { if (!PUSH.state) PUSH.state = 'off'; }
+    pushPaint();
+  }
+  async function pushOn() {
+    if (PUSH.busy) return;
+    PUSH.busy = true; pushPaint();
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { PUSH.state = perm === 'denied' ? 'denied' : 'off'; throw perm === 'denied' ? 'التنبيهات ممنوعة لهذا الموقع. اسمح بها من إعدادات المتصفح ثم أعد المحاولة.' : 'لم تُفعَّل التنبيهات. اضغط «سماح» عندما يسألك الهاتف.'; }
+      const { data, error } = await sb.functions.invoke('task-reminders', { body: { mode: 'key' } });
+      if (error || !data || !data.key) throw 'تعذّر الاتصال بخادم التنبيهات. تأكد من الإنترنت ثم أعد المحاولة.';
+      const reg = await pushReady();
+      if (!reg) throw 'أعد فتح التطبيق ثم حاول مرة أخرى.';
+      let sub = await reg.pushManager.getSubscription();
+      const want = keyBytes(data.key), have = sub && sub.options && sub.options.applicationServerKey ? new Uint8Array(sub.options.applicationServerKey) : null;
+      if (sub && !(have && have.length === want.length && have.every((b, i) => b === want[i]))) { await sub.unsubscribe(); sub = null; }
+      sub = sub || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: want });
+      await pushSave(sub);
+      PUSH.sub = sub; PUSH.state = 'on';
+      await pushDevices();
+      await pushTest(true);
+    } catch (e) { toast(typeof e === 'string' ? e : 'تعذّر تفعيل التنبيهات على هذا الجهاز. أعد المحاولة.', true); }
+    PUSH.busy = false; pushPaint();
+  }
+  async function pushTest(first) {
+    if (!PUSH.sub) return;
+    const { data, error } = await sb.functions.invoke('task-reminders', { body: { mode: 'test', endpoint: PUSH.sub.endpoint } });
+    if (error || !data || !data.ok) return toast('لم يصل التنبيه التجريبي. أوقف التنبيهات على هذا الجهاز ثم فعّلها من جديد.', true);
+    toast(first ? 'تفعّلت التنبيهات. وصلك الآن تنبيه تجريبي.' : 'أُرسل تنبيه تجريبي، يصل خلال ثوانٍ.');
+    pushDevices().then(pushPaint, () => {});
+  }
+  async function pushOff() {
+    const sub = PUSH.sub;
+    if (!sub) return;
+    const { error } = await sb.from('push_subs').delete().eq('endpoint', sub.endpoint);
+    if (error) return toast(dbMsg(error), true);
+    try { await sub.unsubscribe(); } catch (e) { /* the server no longer sends to it either way */ }
+    PUSH.sub = null; PUSH.state = 'off';
+    await pushDevices().catch(() => {});
+    toast('أُوقفت التنبيهات على هذا الجهاز'); pushPaint();
+  }
+  /* Redraw only this card: the settings page keeps a half-typed form as it is. */
+  const pushPaint = () => { const b = document.querySelector('#push-card .card-b'); if (b) b.innerHTML = pushCard(); };
+  function pushCard() {
+    const h = Number(S.settings.remind_hour) || 9, at = t12(pad(h) + ':00');
+    const hour = '<label class="field" style="max-width:12rem;margin:.2rem 0 .9rem"><span>وقت التذكير اليومي</span><select id="remind-hour" data-ch="remind-hour">' +
+      Array.from({ length: 14 }, (_, i) => i + 8).map((v) => '<option value="' + v + '"' + (v === h ? ' selected' : '') + '>' + t12(pad(v) + ':00') + '</option>').join('') + '</select></label>';
+    const st = {
+      on: '<p class="note">' + chip(['مفعّلة على هذا الجهاز', 'ok']) + '</p><div class="actions"><button class="btn" data-act="push-test">إرسال تنبيه تجريبي</button><button class="btn btn-danger" data-act="push-off">إيقاف على هذا الجهاز</button></div>',
+      off: '<div class="actions"><button class="btn btn-primary" data-act="push-on"' + (PUSH.busy ? ' disabled' : '') + '>' + (PUSH.busy ? 'جارٍ التفعيل…' : 'تفعيل التنبيهات على هذا الجهاز') + '</button></div>',
+      denied: '<div class="banner warn"><span>التنبيهات ممنوعة لهذا الموقع على هذا الجهاز. اسمح بالإشعارات من إعدادات المتصفح (رمز القفل بجانب العنوان، أو إعدادات الهاتف ← الإشعارات)، ثم ارجع هنا.</span></div>',
+      ios: '<div class="banner gold"><span>على الآيفون تصل التنبيهات للتطبيق المثبّت فقط: افتح الموقع في Safari ← زر المشاركة ← «إضافة إلى الشاشة الرئيسية»، ثم افتح التطبيق من أيقونته وفعّل التنبيهات من هنا (iOS 16.4 أو أحدث).</span></div>',
+      none: '<p class="note">هذا المتصفح لا يدعم التنبيهات. استخدم Chrome على أندرويد أو الكمبيوتر، أو التطبيق المثبّت على الآيفون.</p>',
+      '': '<p class="note">جارٍ الفحص…</p>',
+    }[PUSH.state] || '';
+    const mine = PUSH.sub && PUSH.sub.endpoint;
+    const devs = PUSH.devices.length ? '<div class="sec-t">الأجهزة التي يصلها التذكير</div><div class="list">' + PUSH.devices.map((d) => '<div class="li"><div><b>' + esc(d.device || 'جهاز') + (d.endpoint === mine ? ' (هذا الجهاز)' : '') + '</b><small>' +
+      (d.last_ok ? 'آخر تنبيه وصل ' + esc(stamp(d.last_ok)) : 'فُعّل ' + esc(stamp(d.created_at))) + (d.last_error ? ' · تعذّر آخر إرسال' : '') + '</small></div></div>').join('') + '</div>' : '';
+    return '<p class="note" style="margin-top:0">يصل إشعار بصوت التنبيه على هذا الجهاز كل يوم الساعة <b class="num">' + at + '</b> بالمهام التي موعدها غداً. الموظف المسؤول يضيف الموعد لتقويم هاتفه من الرابط في رسالة الواتساب، فينبّهه التقويم قبل الموعد بيوم.</p>' +
+      hour + st + devs;
   }
 
   /* ---------- CLIENTS ---------- */
@@ -1738,7 +1832,7 @@ function parseTaskSpeech(text, ctx) {
       '<form id="pw-form" data-form="pw" class="toolbar" style="margin-top:.8rem"><label class="field grow"><span>كلمة سر جديدة (8 أحرف على الأقل)</span><input type="password" id="pw-new" name="pw" minlength="8" autocomplete="new-password" required dir="ltr"></label><button class="btn" type="submit">تغيير كلمة السر</button></form>' +
       '<p class="note" style="margin-top:.8rem">المستخدمون المصرّح لهم: ' + esc((S.admins || []).map(userLabel).join('، ')) + '. لإضافة مستخدم جديد اطلبه من Claude.</p>' +
       '<div class="actions" style="margin-top:.8rem"><button class="btn btn-danger" data-act="signout">تسجيل الخروج</button></div>';
-    out += form + '<div class="grid2">' + card('ربط جهاز البصمة', bridge) + card('حسابي', acct) + card('العطل الرسمية', hol) + card('النسخ الاحتياطي', data) + '</div>';
+    out += form + '<div class="grid2">' + card('تذكير المهام', pushCard(), { id: 'push-card' }) + card('ربط جهاز البصمة', bridge) + card('حسابي', acct) + card('العطل الرسمية', hol) + card('النسخ الاحتياطي', data) + '</div>';
     return out;
   }
 
@@ -2147,7 +2241,8 @@ function parseTaskSpeech(text, ctx) {
         req(v.title, 'أدخل عنوان المهمة.');
         const id = isNew ? newId('tk-') : x.id;
         const doc = { title: v.title, client_id: v.client_id || '', employee_id: v.employee_id || '', category: v.category, due: v.due || '', time: v.due ? v.time || '' : '', years: normYears(v.years), priority: v.priority, status: v.status, recur: v.recur, notes: v.notes || '',
-          created: x.created || new Date().toISOString(), done_at: v.status === 'done' ? x.done_at || new Date().toISOString() : '', wa_at: x.wa_at || '' };
+          created: x.created || new Date().toISOString(), done_at: v.status === 'done' ? x.done_at || new Date().toISOString() : '', wa_at: x.wa_at || '',
+          cal_token: x.cal_token || '', reminded: (v.due || '') === (x.due || '') ? x.reminded || '' : '' };
         await put('tasks/' + id, doc);
         if (v.status === 'done' && x.status !== 'done') await spawnNext({ id, ...doc });
         toast('حُفظت المهمة');
@@ -2161,7 +2256,7 @@ function parseTaskSpeech(text, ctx) {
     const nextDue = addMonthsDate(x.due, k);
     if (S.tasks.some((y) => y.title === x.title && y.client_id === x.client_id && y.due === nextDue)) return;
     const { id, ...rest } = x;
-    await put('tasks/' + newId('tk-'), { ...rest, due: nextDue, status: 'new', done_at: '', wa_at: '', created: new Date().toISOString() });
+    await put('tasks/' + newId('tk-'), { ...rest, due: nextDue, status: 'new', done_at: '', wa_at: '', reminded: '', cal_token: '', created: new Date().toISOString() });
     toast('أُنشئ الموعد التالي: ' + dDate(nextDue));
   }
   function slipHtml(r, ym) {
@@ -2656,6 +2751,9 @@ function parseTaskSpeech(text, ctx) {
     },
     'reload': () => location.reload(),
     'signout': async () => { await sb.auth.signOut(); },
+    'push-on': () => pushOn(),
+    'push-test': () => pushTest(false),
+    'push-off': () => confirmBox('إيقاف التنبيهات', 'لن تصل تذكيرات المهام إلى هذا الجهاز بعد الآن. تبقى الأجهزة الأخرى كما هي.', 'إيقاف', pushOff),
     'bridge-copy': async () => {
       const k = (S.bridge && S.bridge.key) || '';
       try { await navigator.clipboard.writeText(k); toast('نُسخ مفتاح الربط'); } catch (e) { toast('انسخ المفتاح يدوياً من المربع.', true); }
@@ -2669,6 +2767,7 @@ function parseTaskSpeech(text, ctx) {
     }),
   };
   const CH = {
+    'remind-hour': async (el) => { const s = clean(S.settings); s.remind_hour = Number(el.value) || 9; try { await put('hr/settings', s); toast('يصل التذكير كل يوم الساعة ' + t12(pad(s.remind_hour) + ':00')); } catch (e) { toast(dbMsg(e), true); } },
     'att-date': (el) => { if (el.value) { UI.attDate = el.value; render(); } },
     'att-month': (el) => { if (el.value) { UI.attMonth = el.value; UI.attEmp = ''; render(); } },
     'pay-month': (el) => { if (el.value) { UI.payMonth = el.value; render(); } },
@@ -2846,6 +2945,7 @@ function parseTaskSpeech(text, ctx) {
       S.admins = data.map((r) => r.email);
       await loadAll();
       S.status = 'ok'; subscribe(); render(true);
+      pushCheck();
     } catch (e) { S.status = 'error'; S.err = dbMsg(e); render(true); }
   }
   document.getElementById('login-form').addEventListener('submit', async (ev) => {
@@ -2862,6 +2962,7 @@ function parseTaskSpeech(text, ctx) {
     let reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloading) { reloading = true; location.reload(); } });
     navigator.serviceWorker.register('sw.js').then((reg) => reg.update()).catch(() => {});
+    navigator.serviceWorker.addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'open' && ev.data.hash) location.hash = ev.data.hash; }); // a tapped reminder
   }
   (async () => {
     if (!window.supabase || !CFG.url) { showLogin('تعذّر تحميل النظام. تأكد من الاتصال بالإنترنت ثم أعد فتح التطبيق.'); return; }

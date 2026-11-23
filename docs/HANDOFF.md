@@ -50,6 +50,8 @@ The order follows `git log`:
 
 18. **Voice: pick, don't suggest** (23 Nov, `APP_VERSION` 2026.11.23). The owner said «شركة خيري وحمادة» and got an extra suggestion of a person sharing one of the names. Now a clear client is picked with no suggestions, and only real look-alikes are offered.
 
+19. **Task reminders** (23 Nov, `APP_VERSION` 2026.11.23-2). The owner asked for a reminder on the phone, with sound, one day before a task is due, and chose both parts offered: a push notification to the manager's devices (Settings → «تذكير المهام», daily at 9:00 by default) and, for the employee in charge, a calendar link in the WhatsApp notice that puts the task in the phone's calendar with an alarm the day before. See «Task reminders» in `CLAUDE.md`. Each device has to be turned on once from Settings; on an iPhone only from the home-screen app. To check a run: `select status_code, content from net._http_response order by id desc limit 5;` and `select * from cron.job_run_details order by start_time desc limit 5;`.
+
 ## Live system facts (12 Nov 2026)
 
 **Employees** (`emp-01` … `emp-08`):

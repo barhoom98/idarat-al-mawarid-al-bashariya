@@ -41,7 +41,7 @@ const stub = `(() => {
     return Promise.resolve(JSON.parse(JSON.stringify(out))).then(res, rej);
   };
   const session = { user: { id: 'u1', email: window.__oldEmail ? 'old@example.com' : 'alabed@users.millennium-hr.invalid' } }; const fresh = { user: { id: 'u1', email: 'alabed@users.millennium-hr.invalid' } };
-  const client = { from: (t) => new Q(t), channel: () => ({ on() { return this; }, subscribe() { return this; } }),
+  const client = { from: (t) => new Q(t), functions: { invoke: async (name, o) => { (window.__inv = window.__inv || []).push([name, o && o.body]); return { data: o && o.body && o.body.mode === 'key' ? { key: 'BAAA' } : { ok: true }, error: null }; } }, channel: () => ({ on() { return this; }, subscribe() { return this; } }),
     auth: { getSession: async () => ({ data: { session: window.__loggedOut ? null : session } }), refreshSession: async () => { window.__refreshed = true; return { data: { session: fresh }, error: null }; }, onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async (c) => { window.__signedWith = c.email; return { data: { session: fresh }, error: null }; }, signOut: async () => ({}), updateUser: async () => ({ error: null }) } };
 
   window.__xl = { merges: [], rows: {} };
@@ -71,6 +71,9 @@ const stub = `(() => {
       const u = new URL(r.request().url());
       if (u.host === 'app.local') { const f = path.join(root, u.pathname === '/' ? 'index.html' : u.pathname); return fs.existsSync(f) ? r.fulfill({ body: fs.readFileSync(f), contentType: f.endsWith('.html') ? 'text/html' : f.endsWith('.js') ? 'text/javascript' : undefined }) : r.fulfill({ status: 404 }); }
       if (/supabase-js/.test(u.pathname)) return r.fulfill({ body: stub, contentType: 'text/javascript' });
+      if (u.pathname === '/functions/v1/task-cal') return u.searchParams.get('k') === 'tk-cal' // the employee's calendar page (cal.html), with invented data
+        ? r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ id: 'tk-cal', title: 'تقديم إقرار ضريبة المبيعات عن الفترة الأخيرة من السنة', client: 'مؤسسة تجريبية للتجارة والاستيراد والتصدير', tax_no: '12345678', due: '2026-11-24', time: '10:00', years: '2024، 2025', notes: 'إحضار كشف الحساب', priority: 'urgent', done: false, employee: 'موظف تجريبي', company: 'شركة الاختبار' }) })
+        : r.fulfill({ status: 404, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{"error":"not_found"}' });
       return r.abort(); // everything else (CDNs, fonts) is offline in the test
     });
     await p.goto('http://app.local/'); await p.waitForTimeout(1200);
@@ -124,9 +127,10 @@ const stub = `(() => {
     const want = { title: 'إقرار ضريبة الدخل لمؤسسة تجريبية عن سنة 2023 و2024', emp: 'emp-02', client: 'c1', due: true, time: '10:00', years: '2023، 2024', pr: 'urgent', cat: 'إقرار ضريبة الدخل', mic: 'false' };
     if (JSON.stringify(said) !== JSON.stringify(want)) errs.push(label + ': voice task filled ' + JSON.stringify(said));
     await p.evaluate(() => document.getElementById('msubmit').click()); await p.waitForTimeout(800);
-    const wa = await p.evaluate(() => { const a = document.getElementById('wa-go'), x = window.__T.tasks.find((r) => r.data.title.includes('2023')); return { href: a ? a.href : '', saved: x ? x.data : null }; });
+    const wa = await p.evaluate(() => { const a = document.getElementById('wa-go'), x = window.__T.tasks.find((r) => r.data.title.includes('2023')); return { href: a ? a.href : '', saved: x ? { id: x.id, ...x.data } : null }; });
     const msg = decodeURIComponent(wa.href.split('?text=')[1] || '');
-    if (!wa.href.startsWith('https://wa.me/962790000002?text=') || !['مرحباً موظف', 'إقرار ضريبة الدخل', 'مؤسسة تجريبية للتجارة', '12345678', '2023، 2024', '10:00', 'عاجلة'].every((w) => msg.includes(w)) || !wa.saved || wa.saved.years !== '2023، 2024' || wa.saved.time !== '10:00')
+    const calOk = wa.saved && /^[0-9a-f]{32}$/.test(wa.saved.cal_token || '') && msg.includes('http://app.local/cal.html?k=' + encodeURIComponent(wa.saved.id || '') + '&t=' + wa.saved.cal_token);
+    if (!wa.href.startsWith('https://wa.me/962790000002?text=') || !['مرحباً موظف', 'إقرار ضريبة الدخل', 'مؤسسة تجريبية للتجارة', '12345678', '2023، 2024', '10:00', 'عاجلة', 'أضف الموعد لتقويم هاتفك'].every((w) => msg.includes(w)) || !wa.saved || wa.saved.years !== '2023، 2024' || wa.saved.time !== '10:00' || !calOk)
       errs.push(label + ': WhatsApp notice ' + JSON.stringify({ href: wa.href.slice(0, 60), msg, saved: wa.saved }));
     const after = await p.evaluate(async () => {
       const wait = (ms) => new Promise((r) => setTimeout(r, ms)), row = () => window.__T.tasks.find((r) => r.data.title.includes('2023'));
@@ -150,6 +154,25 @@ const stub = `(() => {
     await p.goto('http://app.local/#leaves'); await p.waitForTimeout(500);
     n = await sheets(() => document.querySelector('[data-act="leave-print"]').click());
     if (n !== 1) errs.push(label + ': leave form gave ' + n + ' sheets');
+    // task reminders: the settings card, and its hour is kept in the settings
+    await p.goto('http://app.local/#config'); await p.waitForTimeout(600);
+    const rem = await p.evaluate(async () => {
+      const card = document.getElementById('push-card'), sel = document.getElementById('remind-hour');
+      if (!card || !sel) return { card: !!card, sel: !!sel };
+      sel.value = '10'; sel.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 400));
+      const row = (window.__T.settings || []).find((x) => x.id === 'main');
+      return { hour: row && row.data.remind_hour, text: document.getElementById('push-card').textContent.includes('10:00') };
+    });
+    if (rem.hour !== 10 || !rem.text) errs.push(label + ': reminder settings ' + JSON.stringify(rem));
+    // the employee's calendar page from the WhatsApp link: details, two calendar buttons, no sideways scroll; a wrong link says so
+    await p.goto('http://app.local/cal.html?k=tk-cal&t=0123456789abcdef0123456789abcdef'); await p.waitForTimeout(500);
+    if (outDir) await p.screenshot({ path: path.join(outDir, label + '-cal.png'), fullPage: true });
+    const cal = await p.evaluate(() => ({ h1: (document.querySelector('h1') || {}).textContent || '', btns: [...document.querySelectorAll('.btns .btn')].map((a) => a.getAttribute('href')), wide: document.documentElement.scrollWidth > innerWidth + 1 }));
+    if (!cal.h1.includes('تقديم إقرار') || cal.btns.length !== 2 || !cal.btns.some((h) => /task-cal\?k=tk-cal&t=0123456789abcdef0123456789abcdef&f=ics$/.test(h)) || !cal.btns.some((h) => h.startsWith('https://calendar.google.com/calendar/render?action=TEMPLATE') && h.includes('dates=20261124T100000/20261124T110000') && h.includes('ctz=Asia/Amman')) || cal.wide)
+      errs.push(label + ': calendar page ' + JSON.stringify(cal));
+    await p.goto('http://app.local/cal.html?k=tk-gone&t=0123456789abcdef0123456789abcdef'); await p.waitForTimeout(400);
+    if (!(await p.textContent('main')).includes('لم نجد هذه المهمة')) errs.push(label + ': calendar page with a wrong link');
     await p.close();
   }
   await b.close();
