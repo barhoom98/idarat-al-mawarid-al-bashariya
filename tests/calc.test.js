@@ -159,8 +159,16 @@ test('voice task: greetings are skipped, and a client needs more than one ordina
   // the employee greeted first is the employee, even when a client shares the first name
   has(say('يعطيك العافية محمد، ملف نصر أبو حمدان، براءة ذمة'), { employee_id: 'e3', client_id: 'c3', title: 'ملف نصر أبو حمدان، براءة ذمة' });
   has(say('السلام عليكم، دينا، إقرار الدخل ليوسف غزال لو سمحتي'), { employee_id: 'e6', client_id: 'c4', title: 'إقرار الدخل ليوسف غزال' });
-  // «رؤوف» finds «رؤووف»; the father and the son are both offered rather than guessed
-  assert.deepEqual(say('إقرار الدخل لعيسى رؤوف الدباغ').clientAlt.slice(0, 2), ['c8', 'c9']);
+  // «رؤوف» finds «رؤووف»; a whole name said exactly is picked, and the son with his own first name
+  has(say('إقرار الدخل لعيسى رؤوف الدباغ'), { client_id: 'c8', clientAlt: [] });
+  has(say('إقرار الدخل لكريم عيسى رؤوف الدباغ'), { client_id: 'c9', clientAlt: [] });
+  // a client said clearly is picked with nothing offered beside it; a family name alone offers the family, and only them
+  clients.push({ id: 'c11', name: 'شركة سمير وحمادة الدباغ' }, { id: 'c12', name: 'ناديا سمير احمد الدباغ' }, { id: 'c13', name: 'حمادة عبد الله احمد الدباغ' });
+  has(say('شركة سمير و حمادة'), { client_id: 'c11', clientAlt: [] });
+  has(say('إقرار الدخل لشركة سمير وحمادة الدباغ'), { client_id: 'c11', clientAlt: [] });
+  const fam = say('إقرار دخل الدباغ');
+  assert.equal(fam.client_id, '');
+  assert.deepEqual(fam.clientAlt.slice().sort(), ['c11', 'c12', 'c13', 'c8', 'c9']);
   // one ordinary word picks a client only after «شركة …»
   has(say('سلمى تتابع النور مع الدائرة'), { client_id: '' });
   has(say('سلمى تتابع شركة النور مع الدائرة'), { client_id: 'c10' });

@@ -48,6 +48,8 @@ The order follows `git log`:
     - In the sheet, one tax number is given for two different people: both were added, the second with an id ending in `-2`. 9 rows have no tax number (ids `cl-x…`), and one more without a number was skipped as most likely an existing client. The owner was told which (names stay out of this public repo).
     - Voice: the manager opens with «صباح الخير / مساء الخير», which matched «شركة تل الخير». See `VOICE_GREET` and the client rules in `CLAUDE.md`.
 
+18. **Voice: pick, don't suggest** (23 Nov, `APP_VERSION` 2026.11.23). The owner said «شركة خيري وحمادة» and got an extra suggestion of a person sharing one of the names. Now a clear client is picked with no suggestions, and only real look-alikes are offered.
+
 ## Live system facts (12 Nov 2026)
 
 **Employees** (`emp-01` … `emp-08`):

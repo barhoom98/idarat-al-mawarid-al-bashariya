@@ -929,29 +929,40 @@ function parseTaskSpeech(text, ctx) {
   const said = new Set(); n.forEach((t, i) => { if (free(i) && st[i].length >= 2 && !VOICE_STOP.has(st[i]) && !/\d/.test(t)) said.add(stq[i]); });
   const CCUE = /^(شركه|مؤسسه|محلات|محل|مصنع|مطعم|فندق|عميل|زبون|ملف|ملفات|مكلف|المكلف|حساب|حسابات|اقرار|اقرارات|براءه|تدقيق|ميزانيه)$/;
   const cueFor = (w) => n.some((t, i) => free(i) && stq[i] === w && ((t !== st[i] && /^(ل|لل)/.test(t)) || CCUE.test(st[i - 1] || '') || CCUE.test(n[i - 1] || '') || (CCUE.test(st[i - 2] || '') && /^(ال|ل)/.test(n[i - 1] || ''))));
-  const run = (seq) => { // longest stretch of the name said word for word: {len, at}
-    let best = { len: 0, at: -1 };
-    for (let i = 0; i < n.length; i++) for (let j = 0; j < seq.length; j++) { let k = 0; while (free(i + k) && j + k < seq.length && stq[i + k] === seq[j + k] && (k === 0 || !ends(i + k - 1))) k++; if (k > best.len) best = { len: k, at: i }; }
+  const run = (seq) => { // longest stretch of the name said word for word: {len, at, end}; a spoken «و» in between («خيري و حمادة») does not break it
+    let best = { len: 0, at: -1, end: -1 };
+    for (let i = 0; i < n.length; i++) {
+      if (!free(i) || n[i] === 'و') continue;
+      for (let j = 0; j < seq.length; j++) {
+        let k = 0, q = i, last = i;
+        while (q < n.length && j + k < seq.length && free(q) && stq[q] === seq[j + k] && (k === 0 || !ends(last))) { last = q; k++; q++; while (q < n.length && n[q] === 'و' && free(q)) q++; }
+        if (k > best.len) best = { len: k, at: i, end: last };
+      }
+    }
     return best;
   };
   const strong = [], weak = [];
+  const saidCo = stq.includes('شركه'), saidEst = stq.includes('مؤسسه'); // «شركة …» points at a company's file, not a partner's own
   for (const c of C) {
     const hit = c.tk.filter((w) => said.has(w));
     if (!hit.some((w) => rare(w) && !firsts.has(w))) continue;
     const got = hit.reduce((s, w) => s + wt(w), 0), all = c.tk.reduce((s, w) => s + wt(w), 0), rr = run(c.seq), r = rr.len;
-    const x = { id: c.id, hit, rr, score: got + got / all + (r >= 2 ? 0.8 * r : 0) + (r >= 2 && r === c.seq.length ? 3 : 0) };
+    const full = r >= 2 && r === c.seq.length; // the client's whole name was said
+    const x = { id: c.id, hit, rr, full, score: got + got / all + (r >= 2 ? r : 0) + (full ? 4 : 0) + ((saidCo && c.seq.includes('شركه')) || (saidEst && c.seq.includes('مؤسسه')) ? 2 : 0) };
     const one = hit.length === 1 && r < 2;
     (one && !cueFor(hit[0]) && !(hit[0].length >= 4 && df[hit[0]] <= 2) ? weak : strong).push(x);
   }
   const cands = (strong.length ? strong : weak).sort((a, b) => b.score - a.score);
   if (cands.length) {
-    const top = cands[0], clear = strong.length > 0 && (cands.length === 1 || top.score >= cands[1].score * 1.2);
-    const shown = clear ? [top] : cands.filter((c) => c.score >= top.score * 0.6).slice(0, 4);
+    const top = cands[0], clear = strong.length > 0 && (cands.length === 1 || top.score >= cands[1].score * 1.2 || (top.full && !cands.slice(1).some((c) => c.full)));
+    // not clear: offer only the names as close as the best one, or carrying every distinctive word it matched (the «… الحرباوي» family)
+    const key = top.hit.filter((w) => rare(w) && !firsts.has(w));
+    const shown = clear ? [top] : cands.filter((c) => c.score >= top.score * 0.8 || key.every((w) => c.hit.includes(w))).slice(0, 5);
     if (clear) out.client_id = top.id;
-    out.clientAlt = (clear ? cands.filter((c) => c.score >= top.score * 0.5) : shown).slice(0, 4).map((c) => c.id);
+    out.clientAlt = clear ? [] : shown.map((c) => c.id);
     if (strong.length) { // the client's words leave the sentence; an employee's first name only when it is inside the said name
       const keep = new Set(shown.flatMap((c) => c.hit.filter((w) => !firsts.has(w))));
-      shown.forEach((c) => { if (c.rr.len >= 2) take(c.rr.at, c.rr.len, 'c'); });
+      shown.forEach((c) => { if (c.rr.len >= 2) take(c.rr.at, c.rr.end - c.rr.at + 1, 'c'); });
       n.forEach((t, i) => { if (free(i) && keep.has(stq[i])) used[i] = 'c'; });
     }
   }
@@ -991,7 +1002,7 @@ function parseTaskSpeech(text, ctx) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.11.22';
+  const APP_VERSION = '2026.11.23';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
