@@ -176,6 +176,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
 .banner { border: 1px solid var(--line); background: var(--sheet-2); border-radius: var(--r); padding: .8rem 1rem; font-size: var(--t-sm); display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
 .banner.gold { background: var(--gold-soft); border-color: var(--gold); color: var(--ink); }
 .banner.bad { background: var(--bad-soft); border-color: var(--bad); }
+.banner.warn { background: var(--warn-soft); border-color: var(--warn); }
+.push-ban { margin-bottom: 1rem; }
+.push-ban > span { flex: 1 1 14rem; display: flex; gap: .6rem; align-items: flex-start; }
+.push-ban > span .ic { flex: none; width: 1.5rem; height: 1.5rem; color: var(--gold-ink); }
+.push-ban .actions { display: flex; gap: .5rem; margin-inline-start: auto; }
+.steps { margin: 0; padding-inline-start: 1.3rem; display: grid; gap: .45rem; }
+
 .kv { display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; font-size: var(--t-sm); }
 .kv dt { color: var(--muted); } .kv dd { margin: 0; text-align: end; font-variant-numeric: tabular-nums; }
 .kv .tot { font-weight: 700; border-top: 1px solid var(--line); padding-top: .4rem; }
@@ -1003,7 +1010,7 @@ function parseTaskSpeech(text, ctx) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.11.23-2';
+  const APP_VERSION = '2026.11.23-3';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -1276,6 +1283,7 @@ function parseTaskSpeech(text, ctx) {
     mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7"/>',
     wa: '<path d="M4 20l1.3-4.2A8 8 0 1 1 8.3 18.8z"/><path d="M9.3 9.1c.1 3 2.6 5.5 5.6 5.6l1.1-1.3-1.8-1.1-.8.6c-.9-.4-1.6-1.1-2-2l.6-.8-1.1-1.8z"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/>',
     chev: '<path d="m6 9 6 6 6-6"/>',
     fwd: '<path d="m14.5 6-6 6 6 6"/>', // points left: forward in a right-to-left page
     back: '<path d="m9.5 6 6 6-6 6"/>',
@@ -1321,6 +1329,7 @@ function parseTaskSpeech(text, ctx) {
     const t = todayStr(), now = nowMin(), c = ctx(), sc = sched(c, t), emps = activeEmps().filter((e) => e.track !== false);
     const sub = esc(F.full.format(dateObj(t))) + ' · ' + (sc.type === 'work' ? 'الدوام <span class="num">' + t12(fromMin(sc.start)) + ' – ' + t12(fromMin(sc.end)) + '</span>' : sc.type === 'holiday' ? 'عطلة رسمية: ' + esc(sc.name) : 'عطلة أسبوعية');
     let out = head('لوحة المتابعة', sub + bridgeChip(), '<a class="btn" href="#attendance">الحضور</a><button class="btn" data-act="task-voice">' + ic('mic') + 'مهمة صوتية</button><button class="btn btn-primary" data-act="task-new">' + ic('plus') + 'مهمة جديدة</button>');
+    out += pushBanner();
     if (!S.employees.length) return out + card('', noEmps());
     const rows = emps.map((e) => ({ e, r: evalDay(c, e, t, t, now) }));
     const n = (f) => rows.filter((x) => f(x.r)).length;
@@ -1527,6 +1536,7 @@ function parseTaskSpeech(text, ctx) {
     const t = todayStr(), n = taskCounts(t), list = tasksFiltered(t), ph = isPhone();
     let out = head(ph ? 'المهام' : 'المهام ومتابعة العملاء', ph ? '' : 'مواعيد الإقرارات والمعاملات لكل عميل، والمحاسب المسؤول عنها. المهام المتكررة تُنشئ موعدها التالي تلقائياً عند إنجازها.',
       (ph ? '' : '<button class="btn" data-act="task-voice">' + ic('mic') + 'مهمة صوتية</button>') + '<button class="btn btn-primary" data-act="task-new">' + ic('plus') + 'مهمة جديدة</button>');
+    out += pushBanner();
     const FL = [['open', 'مهام مفتوحة', 'المفتوحة', n.open, ''], ['overdue', 'متأخرة عن موعدها', 'متأخرة', n.overdue, 'bad'], ['week', 'مستحقة هذا الأسبوع', 'هذا الأسبوع', n.week, 'warn'], ['waiting', 'بانتظار العميل', 'بانتظار العميل', n.waiting, ''], ['done', 'أُنجزت هذا الشهر', 'منجزة', n.done, 'ok']];
     const search = '<label class="field grow"><span>بحث</span><input type="search" id="task-q" data-in="task-q" value="' + esc(UI.taskQ) + '" placeholder="اسم المهمة أو العميل أو الموظف"></label>';
     const empSel = '<label class="field"><span>المسؤول</span><select id="task-emp" data-ch="task-emp">' + empOpts(UI.taskEmp, 'الكل') + '</select></label>';
@@ -1665,6 +1675,7 @@ function parseTaskSpeech(text, ctx) {
 
   /* ---------- task reminders on this device: Web Push from edge function task-reminders (run hourly by pg_cron) ---------- */
   const PUSH = { state: '', sub: null, devices: [], busy: false }; // state: on | off | denied | ios | none ('' = not checked yet)
+  const homeApp = () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const isIOS = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const pushReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((ok) => setTimeout(() => ok(null), 8000))]);
   const keyBytes = (k) => Uint8Array.from(atob(k.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (k.length % 4)) % 4)), (c) => c.charCodeAt(0));
@@ -1677,7 +1688,7 @@ function parseTaskSpeech(text, ctx) {
   /* On every start: where this device stands, and the server keeps this device's current subscription (the push service can renew it). */
   async function pushCheck() {
     try {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) PUSH.state = isIOS() ? 'ios' : 'none';
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) PUSH.state = isIOS() ? (homeApp() ? 'ios-old' : 'ios') : 'none';
       else if (Notification.permission === 'denied') PUSH.state = 'denied';
       else {
         const reg = await pushReady();
@@ -1728,7 +1739,7 @@ function parseTaskSpeech(text, ctx) {
     toast('أُوقفت التنبيهات على هذا الجهاز'); pushPaint();
   }
   /* Redraw only this card: the settings page keeps a half-typed form as it is. */
-  const pushPaint = () => { const b = document.querySelector('#push-card .card-b'); if (b) b.innerHTML = pushCard(); };
+  const pushPaint = () => { const b = document.querySelector('#push-card .card-b'); if (b) b.innerHTML = pushCard(); if (UI.route !== 'config') schedule(); };
   function pushCard() {
     const h = Number(S.settings.remind_hour) || 9, at = t12(pad(h) + ':00');
     const hour = '<label class="field" style="max-width:12rem;margin:.2rem 0 .9rem"><span>وقت التذكير اليومي</span><select id="remind-hour" data-ch="remind-hour">' +
@@ -1736,8 +1747,9 @@ function parseTaskSpeech(text, ctx) {
     const st = {
       on: '<p class="note">' + chip(['مفعّلة على هذا الجهاز', 'ok']) + '</p><div class="actions"><button class="btn" data-act="push-test">إرسال تنبيه تجريبي</button><button class="btn btn-danger" data-act="push-off">إيقاف على هذا الجهاز</button></div>',
       off: '<div class="actions"><button class="btn btn-primary" data-act="push-on"' + (PUSH.busy ? ' disabled' : '') + '>' + (PUSH.busy ? 'جارٍ التفعيل…' : 'تفعيل التنبيهات على هذا الجهاز') + '</button></div>',
-      denied: '<div class="banner warn"><span>التنبيهات ممنوعة لهذا الموقع على هذا الجهاز. اسمح بالإشعارات من إعدادات المتصفح (رمز القفل بجانب العنوان، أو إعدادات الهاتف ← الإشعارات)، ثم ارجع هنا.</span></div>',
-      ios: '<div class="banner gold"><span>على الآيفون تصل التنبيهات للتطبيق المثبّت فقط: افتح الموقع في Safari ← زر المشاركة ← «إضافة إلى الشاشة الرئيسية»، ثم افتح التطبيق من أيقونته وفعّل التنبيهات من هنا (iOS 16.4 أو أحدث).</span></div>',
+      denied: '<div class="banner warn"><span>التنبيهات ممنوعة لهذا الموقع على هذا الجهاز.</span><button class="btn btn-sm" data-act="push-help">كيف أسمح بها؟</button></div>',
+      ios: '<div class="banner gold"><span>على الآيفون يصل التذكير للنظام المضاف إلى الشاشة الرئيسية فقط.</span><button class="btn btn-sm" data-act="push-help">كيف؟</button></div>',
+      'ios-old': '<div class="banner warn"><span>نظام هذا الآيفون قديم ولا يستقبل التنبيهات. حدّثه إلى iOS 16.4 أو أحدث من الإعدادات ← عام ← تحديث البرنامج.</span></div>',
       none: '<p class="note">هذا المتصفح لا يدعم التنبيهات. استخدم Chrome على أندرويد أو الكمبيوتر، أو التطبيق المثبّت على الآيفون.</p>',
       '': '<p class="note">جارٍ الفحص…</p>',
     }[PUSH.state] || '';
@@ -1748,6 +1760,26 @@ function parseTaskSpeech(text, ctx) {
       hour + st + devs;
   }
 
+  /* The bar on the home and tasks pages, until this device has reminders on (or the person chose «لاحقاً»). */
+  const PUSH_LATER = 'hr-push-later';
+  function pushBanner() {
+    let later = false;
+    try { later = !!localStorage.getItem(PUSH_LATER); } catch (e) { /* private window */ }
+    if (later || !['off', 'ios', 'denied'].includes(PUSH.state)) return '';
+    const text = { off: 'فعّل التذكير على هذا الجهاز ليصلك إشعار بصوت قبل موعد كل مهمة بيوم.', ios: 'ليصلك تذكير المهام على الآيفون: أضف النظام إلى الشاشة الرئيسية أولاً.', denied: 'تذكير المهام لا يصل: التنبيهات ممنوعة لهذا الموقع على هذا الجهاز.' }[PUSH.state];
+    const go = PUSH.state === 'off' ? '<button class="btn btn-primary btn-sm" data-act="push-on"' + (PUSH.busy ? ' disabled' : '') + '>' + (PUSH.busy ? 'جارٍ التفعيل…' : 'تفعيل') + '</button>' : '<button class="btn btn-primary btn-sm" data-act="push-help">كيف؟</button>';
+    return '<div class="banner gold push-ban"><span>' + ic('bell') + '<span><b>تذكير المهام</b><br>' + text + '</span></span><div class="actions">' + go + '<button class="btn btn-sm" data-act="push-later">لاحقاً</button></div></div>';
+  }
+  function pushHelp() {
+    const steps = (l) => '<ol class="steps">' + l.map((s) => '<li>' + s + '</li>').join('') + '</ol>';
+    const body = PUSH.state === 'ios'
+      ? steps(['افتح <b>hr.alabed-jo.com</b> في <b>Safari</b>.', 'اضغط زر <b>المشاركة</b> (مربع وسهم للأعلى) أسفل الشاشة.', 'اختر <b>«إضافة إلى الشاشة الرئيسية»</b> ثم <b>«إضافة»</b>.', 'افتح النظام من <b>الأيقونة الجديدة</b> وسجّل الدخول.', 'اضغط <b>«تفعيل»</b> في الشريط الأصفر، ثم <b>«سماح»</b>.']) +
+        '<p class="note">يلزم iOS 16.4 أو أحدث.</p>'
+      : '<div class="sec-t">أندرويد (Chrome)</div>' + steps(['اضغط <b>⋮</b> أعلى Chrome ← <b>الإعدادات</b> ← <b>إعدادات المواقع</b> ← <b>الإشعارات</b>.', 'اختر <b>hr.alabed-jo.com</b> واجعلها <b>«سماح»</b>.', 'إذا كان النظام مثبّتاً كتطبيق: اضغط مطولاً على أيقونته ← <b>معلومات التطبيق</b> ← <b>الإشعارات</b> ← تشغيل.']) +
+        '<div class="sec-t">آيفون</div>' + steps(['<b>الإعدادات</b> ← <b>الإشعارات</b> ← <b>الألفية HR</b> ← <b>السماح بالإشعارات</b>.']) +
+        '<p class="note">ثم ارجع للنظام واضغط «تفعيل» في الإعدادات ← «تذكير المهام».</p>';
+    openModal({ title: PUSH.state === 'ios' ? 'تذكير المهام على الآيفون' : 'السماح بالتنبيهات', cancel: 'تم', body });
+  }
   /* ---------- CLIENTS ---------- */
   function clientsFiltered() {
     const q = normAr(UI.clientQ);
@@ -1832,7 +1864,7 @@ function parseTaskSpeech(text, ctx) {
       '<form id="pw-form" data-form="pw" class="toolbar" style="margin-top:.8rem"><label class="field grow"><span>كلمة سر جديدة (8 أحرف على الأقل)</span><input type="password" id="pw-new" name="pw" minlength="8" autocomplete="new-password" required dir="ltr"></label><button class="btn" type="submit">تغيير كلمة السر</button></form>' +
       '<p class="note" style="margin-top:.8rem">المستخدمون المصرّح لهم: ' + esc((S.admins || []).map(userLabel).join('، ')) + '. لإضافة مستخدم جديد اطلبه من Claude.</p>' +
       '<div class="actions" style="margin-top:.8rem"><button class="btn btn-danger" data-act="signout">تسجيل الخروج</button></div>';
-    out += form + '<div class="grid2">' + card('تذكير المهام', pushCard(), { id: 'push-card' }) + card('ربط جهاز البصمة', bridge) + card('حسابي', acct) + card('العطل الرسمية', hol) + card('النسخ الاحتياطي', data) + '</div>';
+    out += card('تذكير المهام', pushCard(), { id: 'push-card' }) + form + '<div class="grid2">' + card('ربط جهاز البصمة', bridge) + card('حسابي', acct) + card('العطل الرسمية', hol) + card('النسخ الاحتياطي', data) + '</div>';
     return out;
   }
 
@@ -1843,7 +1875,7 @@ function parseTaskSpeech(text, ctx) {
     const pend = S.leaves.filter((l) => l.status === 'pending').length, pay = S.payroll[d.ym], field = rows.filter((x) => x.r.status === 'field').length;
     const cyc = (k) => S.clients.filter((c) => c.gst_cycle === k).length;
     const tile = (k, big, small, tone, txt) => '<a class="app-tile' + (tone ? ' is-' + tone : '') + '" href="#' + k + '"><span class="app-i">' + ic(k) + '</span><strong class="num' + (txt ? ' txt' : '') + '">' + big + '</strong><b>' + ROUTES[k][0] + '</b><small>' + small + '</small></a>';
-    let out = head('لوحة المتابعة', d.sub + bridgeChip()) + voiceCta();
+    let out = head('لوحة المتابعة', d.sub + bridgeChip()) + pushBanner() + voiceCta();
     out += '<div class="app-grid">' +
       tile('attendance', d.here + ' <small>/ ' + rows.length + '</small>', sc.type === 'work' ? 'متأخر ' + d.late + ' · لم يحضر ' + d.away : 'اليوم عطلة', d.away ? 'bad' : d.late ? 'warn' : 'ok') +
       tile('tasks', int(open.length), (od ? 'متأخرة ' + od + ' · ' : '') + 'هذا الأسبوع ' + wk, od ? 'bad' : '') +
@@ -2752,6 +2784,8 @@ function parseTaskSpeech(text, ctx) {
     'reload': () => location.reload(),
     'signout': async () => { await sb.auth.signOut(); },
     'push-on': () => pushOn(),
+    'push-help': () => pushHelp(),
+    'push-later': () => { try { localStorage.setItem(PUSH_LATER, new Date().toISOString()); } catch (e) { /* shown again next time */ } schedule(); toast('تجده متى شئت في الإعدادات ← «تذكير المهام».'); },
     'push-test': () => pushTest(false),
     'push-off': () => confirmBox('إيقاف التنبيهات', 'لن تصل تذكيرات المهام إلى هذا الجهاز بعد الآن. تبقى الأجهزة الأخرى كما هي.', 'إيقاف', pushOff),
     'bridge-copy': async () => {
