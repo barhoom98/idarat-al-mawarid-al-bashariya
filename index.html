@@ -1044,7 +1044,7 @@ function amountWordsJOD(v) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.11.25-2';
+  const APP_VERSION = '2026.11.25-3';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -3107,8 +3107,18 @@ function amountWordsJOD(v) {
   if ('serviceWorker' in navigator) {
     const hadController = !!navigator.serviceWorker.controller;
     let reloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloading) { reloading = true; location.reload(); } });
-    navigator.serviceWorker.register('sw.js').then((reg) => reg.update()).catch(() => {});
+    /* A new version takes over: reload, but not in the middle of a form (a dialog open, or unsaved settings) — then right after it. */
+    const busy = () => !!modalRoot.firstChild || (UI.route === 'config' && UI.cfgDirty);
+    const reloadWhenFree = () => { if (reloading) return; if (busy()) { setTimeout(reloadWhenFree, 2000); return; } reloading = true; location.reload(); };
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) reloadWhenFree(); });
+    /* The installed app may stay open for days: look for a new version every 15 minutes and whenever the window comes back. */
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      const check = () => reg.update().catch(() => {});
+      check();
+      setInterval(check, 15 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+      window.addEventListener('focus', check);
+    }).catch(() => {});
     navigator.serviceWorker.addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'open' && ev.data.hash) location.hash = ev.data.hash; }); // a tapped reminder
   }
   (async () => {

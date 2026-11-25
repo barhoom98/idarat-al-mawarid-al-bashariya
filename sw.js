@@ -1,7 +1,7 @@
 // Offline shell for the installed app. Data always comes live from Supabase;
 // only this site's own files are cached, network-first and revalidated (no-cache) so updates arrive on the next open.
 // Also shows task reminders pushed by the edge function task-reminders (Settings → «تذكير المهام»).
-const CACHE = 'millennium-hr-v22';
+const CACHE = 'millennium-hr-v23';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-64.png'];
 
 self.addEventListener('install', (e) => {

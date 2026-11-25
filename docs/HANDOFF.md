@@ -56,6 +56,8 @@ The order follows `git log`:
 
 21. **Board membership statement** (25 Nov, `APP_VERSION` 2026.11.25-2). The owner asked for a separate statement for the general manager (emp-01), titled «كشف صرف عضوية مجلس إدارة», without hourly wage, with the amount shown as board membership and income tax deducted. The figures the owner gave are in `employees.data.board` (Supabase only). The owner's stated net did not equal amount minus tax; asked which figure is right, awaiting the answer.
 
+22. **Installed apps on the old address** (25 Nov, `APP_VERSION` 2026.11.25-3). The owner said the app installed on the office computer never shows the changes. API logs (referer) showed a Windows Chrome app and an Android phone still running from https://barhoom98.github.io/ — installed before the move to hr.alabed-jo.com, frozen on their cached copy. They have to be removed and installed again from the new address (steps were sent). The app now also checks for updates every 15 minutes and on returning to the window.
+
 ## Live system facts (12 Nov 2026)
 
 **Employees** (`emp-01` … `emp-08`):
