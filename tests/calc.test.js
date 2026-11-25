@@ -6,7 +6,7 @@ const assert = require('assert/strict');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const pure = html.slice(html.indexOf('/*PURE-START*/'), html.indexOf('/*PURE-END*/'));
-const P = new Function(pure + '\nreturn { mergeSettings, evalDay, monthSummary, payrollRow, collapsePunches, fpIds, fieldPeriodOn, parseTaskSpeech, waNumber };')();
+const P = new Function(pure + '\nreturn { mergeSettings, evalDay, monthSummary, payrollRow, collapsePunches, fpIds, fieldPeriodOn, parseTaskSpeech, waNumber, amountWordsJOD };')();
 
 let n = 0;
 const test = (name, fn) => { fn(); n++; console.log('ok  ' + name); };
@@ -172,6 +172,29 @@ test('voice task: greetings are skipped, and a client needs more than one ordina
   // one ordinary word picks a client only after «شركة …»
   has(say('سلمى تتابع النور مع الدائرة'), { client_id: '' });
   has(say('سلمى تتابع شركة النور مع الدائرة'), { client_id: 'c10' });
+});
+
+test('net salary in words (Jordanian dinars and fils)', () => {
+  const w = P.amountWordsJOD;
+  assert.equal(w(1568.472), 'ألف وخمسمئة وثمانية وستون ديناراً أردنياً وأربعمئة واثنان وسبعون فلساً');
+  assert.equal(w(1), 'دينار أردني واحد');
+  assert.equal(w(2), 'ديناران أردنيان');
+  assert.equal(w(5), 'خمسة دنانير أردنية');
+  assert.equal(w(12.5), 'اثنا عشر ديناراً أردنياً وخمسمئة فلس');
+  assert.equal(w(21), 'واحد وعشرون ديناراً أردنياً');
+  assert.equal(w(100), 'مئة دينار أردني');
+  assert.equal(w(110), 'مئة وعشرة دنانير أردنية');
+  assert.equal(w(111), 'مئة وأحد عشر ديناراً أردنياً');
+  assert.equal(w(200), 'مئتا دينار أردني');
+  assert.equal(w(250.25), 'مئتان وخمسون ديناراً أردنياً ومئتان وخمسون فلساً');
+  assert.equal(w(1000), 'ألف دينار أردني');
+  assert.equal(w(2000), 'ألفا دينار أردني');
+  assert.equal(w(2450), 'ألفان وأربعمئة وخمسون ديناراً أردنياً');
+  assert.equal(w(3105.01), 'ثلاثة آلاف ومئة وخمسة دنانير أردنية وعشرة فلوس');
+  assert.equal(w(25000), 'خمسة وعشرون ألف دينار أردني');
+  assert.equal(w(0.75), 'سبعمئة وخمسون فلساً');
+  assert.equal(w(0.001), 'فلس واحد');
+  assert.equal(w(0), 'صفر');
 });
 
 console.log('\n' + n + ' groups passed');

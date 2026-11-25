@@ -1003,6 +1003,40 @@ function parseTaskSpeech(text, ctx) {
   out.title = orig.slice(a, b + 1).filter((w, k) => !gone(a + k)).join(' ').replace(/^[\s،,:;.\-]+|[\s،,:;\-]+$/g, '');
   return out;
 }
+/* An amount in Jordanian dinars written out, as on cheques and payslips:
+   1568.472 → «ألف وخمسمئة وثمانية وستون ديناراً أردنياً وأربعمئة واثنان وسبعون فلساً». */
+function amountWordsJOD(v) {
+  const ONES = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة', 'عشرة'];
+  const TEENS = ['', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+  const TENS = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+  const HUND = ['', 'مئة', 'مئتان', 'ثلاثمئة', 'أربعمئة', 'خمسمئة', 'ستمئة', 'سبعمئة', 'ثمانمئة', 'تسعمئة'];
+  const under100 = (n) => (n <= 10 ? ONES[n] : n < 20 ? TEENS[n - 10] : n % 10 ? ONES[n % 10] + ' و' + TENS[Math.floor(n / 10)] : TENS[n / 10]);
+  const under1000 = (n, bare) => { // bare: the number stands right before its noun, so 200 is «مئتا»
+    const h = Math.floor(n / 100), r = n % 100;
+    return [h ? (h === 2 && !r && bare ? 'مئتا' : HUND[h]) : '', r ? under100(r) : ''].filter(Boolean).join(' و');
+  };
+  /* n with its noun: forms = [one, two, 3–10 (plural), 11–99 (accusative), round hundreds/thousands] */
+  function counted(n, f) {
+    if (n === 1) return f[0] + ' ' + f[5];
+    if (n === 2) return f[1];
+    const r = n % 100, k = Math.floor(n / 1000), rest = n % 1000;
+    let s = '';
+    if (k) {
+      const kr = k % 100;
+      s = k === 1 ? 'ألف' : k === 2 ? (rest ? 'ألفان' : 'ألفا') : k <= 10 ? ONES[k] + ' آلاف' : under1000(k, false) + (kr >= 11 && rest ? ' ألفاً' : ' ألف');
+    }
+    if (rest) s += (s ? ' و' : '') + under1000(rest, true);
+    const noun = r === 0 || r === 1 || r === 2 ? f[4] : r <= 10 ? f[2] : f[3];
+    return s + ' ' + noun;
+  }
+  const fils = Math.round(Math.abs(Number(v) || 0) * 1000), jd = Math.floor(fils / 1000), fl = fils % 1000;
+  const D = ['دينار', 'ديناران أردنيان', 'دنانير أردنية', 'ديناراً أردنياً', 'دينار أردني', 'أردني واحد'];
+  const F = ['فلس', 'فلسان', 'فلوس', 'فلساً', 'فلس', 'واحد'];
+  const parts = [];
+  if (jd) parts.push(counted(jd, D));
+  if (fl) parts.push(counted(fl, F));
+  return parts.length ? parts.join(' و') : 'صفر';
+}
 /*PURE-END*/
 </script>
 
@@ -1010,7 +1044,7 @@ function parseTaskSpeech(text, ctx) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.11.23-3';
+  const APP_VERSION = '2026.11.25';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -2294,11 +2328,11 @@ function parseTaskSpeech(text, ctx) {
   function slipHtml(r, ym) {
     const s = S.settings;
     const row = (l, v) => '<dt>' + l + '</dt><dd class="num">' + v + '</dd>';
-    return '<div class="slip"><div class="slip-h"><img src="' + MARK + '" alt=""><div><b>' + esc(s.company_ar) + '</b><small>كشف راتب ' + esc(dMonth(ym)) + '</small></div></div>' +
-      '<div class="slip-b"><div><div class="sec-t">الموظف</div><dl class="kv">' + row('الاسم', esc(r.name)) + row('المسمى', esc(r.title || '—')) + row('أيام العمل', int(r.work)) + row('أيام الحضور', int(r.present)) + row('أجر الساعة', money(r.hourly)) + '</dl></div>' +
+    return '<div class="slip"><div class="slip-h"><img src="' + MARK + '" alt=""><div><b>' + esc(s.company_ar) + '</b><small>كشف صرف راتب ' + esc(dMonth(ym)) + '</small></div></div>' +
+      '<div class="slip-b"><div><div class="sec-t">الموظف</div><dl class="kv">' + row('الاسم', esc(r.name)) + row('المسمى', esc(r.title || '—')) + row('أجر الساعة', money(r.hourly)) + '</dl></div>' +
       '<div><div class="sec-t">المستحقات</div><dl class="kv">' + row('الراتب الأساسي', money(r.basic)) + row('العلاوات', money(r.allow)) + row('بدل الإضافي (' + hm(r.otMin + r.otOffMin) + ' ساعة)', money(r.otPay)) + row('مكافأة', money(r.bonus)) + '<dt class="tot">الإجمالي</dt><dd class="tot num">' + money(r.gross) + '</dd></dl></div>' +
       '<div><div class="sec-t">الاقتطاعات</div><dl class="kv">' + row('غياب (' + int(r.absent) + ' يوم)', money(r.absDed)) + row('إجازة بدون راتب (' + int(r.unpaid) + ' يوم)', money(r.unpaidDed)) + row('تأخير وخروج مبكر', money(r.lateDed)) + row('الضمان الاجتماعي', money(r.ssc)) + row('ضريبة الدخل', money(r.tax)) + row('سلف', money(r.advance)) + row('خصومات أخرى', money(r.other)) + '<dt class="tot">مجموع الاقتطاعات</dt><dd class="tot num">' + money(r.ded) + '</dd></dl></div>' +
-      '<div><div class="sec-t">الصافي</div><dl class="kv"><dt class="tot">صافي الراتب (دينار)</dt><dd class="tot num" style="font-size:1.25rem;color:var(--gold-ink)">' + money(r.net) + '</dd></dl>' + (r.note ? '<p class="note" style="margin-top:.6rem">' + esc(r.note) + '</p>' : '') + '</div></div></div>';
+      '<div><div class="sec-t">الصافي</div><dl class="kv"><dt class="tot">صافي الراتب (دينار أردني)</dt><dd class="tot num" style="font-size:1.25rem;color:var(--gold-ink)">' + money(r.net) + '</dd></dl><p class="note" style="margin:.5rem 0 0">فقط ' + esc(amountWordsJOD(r.net)) + ' لا غير</p>' + (r.note ? '<p class="note" style="margin-top:.6rem">' + esc(r.note) + '</p>' : '') + '</div></div></div>';
   }
   function slipForm(empId) {
     const ym = UI.payMonth, p = S.payroll[ym] || {}, locked = !!p.locked;
@@ -2307,7 +2341,7 @@ function parseTaskSpeech(text, ctx) {
     const fields = locked ? '<p class="note" style="margin:0">رواتب هذا الشهر معتمدة. ألغِ الاعتماد لتعديل المكافأة أو الاقتطاعات.</p>' :
       '<div class="form-grid"><label class="field"><span>مكافأة</span><input type="number" name="bonus" step="0.001" min="0" value="' + esc(a.bonus || '') + '"></label><label class="field"><span>ضريبة الدخل</span><input type="number" name="tax" step="0.001" min="0" value="' + esc(a.tax || '') + '"></label><label class="field"><span>سلفة</span><input type="number" name="advance" step="0.001" min="0" value="' + esc(a.advance || '') + '"></label><label class="field"><span>خصومات أخرى</span><input type="number" name="other" step="0.001" min="0" value="' + esc(a.other || '') + '"></label><label class="field full"><span>ملاحظة على الكشف</span><input type="text" name="note" value="' + esc(a.note || '') + '"></label></div>';
     openModal({
-      title: 'كشف راتب ' + esc(r.name), wide: true, body: slipHtml(r, ym) + fields,
+      title: 'كشف صرف راتب ' + esc(r.name), wide: true, body: slipHtml(r, ym) + fields,
       submit: locked ? '' : 'حفظ التعديلات',
       footLeft: '<button type="button" class="btn" data-act="slip-dl" data-v="' + esc(empId) + '">طباعة / PDF</button>',
       onSubmit: async (v) => {
@@ -2564,19 +2598,20 @@ function parseTaskSpeech(text, ctx) {
     const st = S.settings, p = S.payroll[ym] || {};
     const status = p.locked ? 'معتمد بتاريخ ' + dmy(String(p.locked_at || '').slice(0, 10) || todayStr()) : 'مسودة غير معتمدة';
     const tr = (l, v, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><th>' + l + '</th><td>' + v + '</td></tr>';
-    const sheet = (r) => '<h2>كشف راتب</h2><p class="sub">الفترة: ' + esc(monthPeriod(ym)) + '</p>' +
+    const sheet = (r) => '<h2>كشف صرف راتب</h2><p class="sub">الفترة: ' + esc(monthPeriod(ym)) + '</p>' +
       '<div class="ref"><span>' + esc(status) + '</span><span>تاريخ الإصدار: ' + esc(issuedAt()) + '</span></div>' +
-      '<table class="info">' + tr('اسم الموظف', esc(r.name)) + tr('المسمى الوظيفي', esc(r.title || '—')) + tr('أيام العمل / أيام الحضور', '<span class="num">' + int(r.work) + ' / ' + int(r.present) + '</span>') + tr('أجر الساعة (دينار)', '<span class="num">' + money(r.hourly) + '</span>') + '</table>' +
+      '<table class="info">' + tr('اسم الموظف', esc(r.name)) + tr('المسمى الوظيفي', esc(r.title || '—')) + tr('أجر الساعة (دينار)', '<span class="num">' + money(r.hourly) + '</span>') + '</table>' +
       '<div class="cols"><div><h3>المستحقات</h3><table>' + tr('الراتب الأساسي', money(r.basic)) + tr('العلاوات', money(r.allow)) + tr('بدل الإضافي (' + hm(r.otMin + r.otOffMin) + ' ساعة)', money(r.otPay)) + tr('المكافأة', money(r.bonus)) + tr('إجمالي المستحقات', money(r.gross), 'tot') + '</table></div>' +
       '<div><h3>الاقتطاعات</h3><table>' + tr('الغياب (' + int(r.absent) + ' يوم)', money(r.absDed)) + tr('إجازة بدون راتب (' + int(r.unpaid) + ' يوم)', money(r.unpaidDed)) + tr('التأخير والخروج المبكر', money(r.lateDed)) + tr('الضمان الاجتماعي (' + esc(st.ssc_emp) + '%)', money(r.ssc)) + tr('ضريبة الدخل', money(r.tax)) + tr('السلف', money(r.advance)) + tr('خصومات أخرى', money(r.other)) + tr('مجموع الاقتطاعات', money(r.ded), 'tot') + '</table></div></div>' +
-      '<div class="net"><span>صافي الراتب المستحق (دينار أردني)</span><span>' + money(r.net) + '</span></div>' +
+      '<div class="net"><span>صافي الراتب المستحق</span><span><span class="num">' + money(r.net) + '</span> دينار أردني</span></div>' +
+      '<p class="netw">فقط ' + esc(amountWordsJOD(r.net)) + ' لا غير</p>' +
       (r.note ? '<p class="pnote">ملاحظة: ' + esc(r.note) + '</p>' : '') +
       '<div class="sign"><div>توقيع الموظف</div><div>المحاسب</div><div>المدير العام</div></div>';
-    const css = '.lvdoc .num,.lvdoc .cols td,.lvdoc .net span:last-child{font-family:Arial,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}' +
+    const css = '.lvdoc .num,.lvdoc .cols td{font-family:Arial,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}' +
       '.lvdoc .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}.lvdoc h3{margin:14px 0 2px;font-size:16px}' +
       '.lvdoc .cols th{background:#f5f2ea;font-weight:600;width:58%;EXACT}.lvdoc .cols .tot th,.lvdoc .cols .tot td{background:#26282C;color:#fff;font-weight:700;EXACT}' +
       '.lvdoc .net{margin-top:16px;border:2px solid #C9A24E;border-radius:6px;padding:10px 14px;display:flex;justify-content:space-between;font-size:18px;font-weight:700}' +
-      '.lvdoc .pnote{color:#444;margin:10px 0 0}';
+      '.lvdoc .netw{margin:6px 0 0;padding:8px 14px;border:1px solid #bfbab0;border-radius:6px;background:#faf7ef;font-weight:600;EXACT}.lvdoc .pnote{color:#444;margin:10px 0 0}';
     return letterDoc(list.map(sheet), css, 'كشف صادر من نظام الموارد البشرية');
   }
   /* Payslip preview (print / PDF / share): one employee, or everyone on the month's sheet. */
@@ -2585,8 +2620,8 @@ function parseTaskSpeech(text, ctx) {
     if (!rows.length) { toast('لا يوجد موظفون في كشف هذا الشهر.', true); return; }
     const one = rows.length === 1 ? rows[0].name : '';
     previewDoc({
-      title: one ? 'كشف راتب ' + one + ' — ' + dMonth(ym) : 'كشوف رواتب الموظفين — ' + dMonth(ym),
-      name: (one ? 'كشف-راتب-' + one.replace(/\s+/g, '-') : 'كشوف-رواتب-الموظفين') + '-' + ym,
+      title: one ? 'كشف صرف راتب ' + one + ' — ' + dMonth(ym) : 'كشوف رواتب الموظفين — ' + dMonth(ym),
+      name: (one ? 'كشف-صرف-راتب-' + one.replace(/\s+/g, '-') : 'كشوف-رواتب-الموظفين') + '-' + ym,
       html: payslipsDoc(rows, ym),
     });
   }
