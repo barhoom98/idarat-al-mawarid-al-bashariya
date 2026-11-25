@@ -1044,7 +1044,7 @@ function amountWordsJOD(v) {
 (() => {
   'use strict';
   const MARK = document.querySelector('.brand img').getAttribute('src');
-  const APP_VERSION = '2026.11.25';
+  const APP_VERSION = '2026.11.25-2';
   /* Usernames sign in through Supabase Auth as <name>@USER_DOMAIN (a reserved, never-mailed domain); an address with @ is used as is. */
   const USER_DOMAIN = 'users.millennium-hr.invalid';
   const loginEmail = (u) => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : u.replace(/\s+/g, '') + '@' + USER_DOMAIN; };
@@ -1513,6 +1513,54 @@ function amountWordsJOD(v) {
     const t = todayStr(), now = nowMin(), c = ctx();
     return activeEmps().map((e) => payrollRow(c, e, ym, p && p.adj && p.adj[e.id], t, now));
   }
+  /* Board membership («عضوية مجلس إدارة»): its own monthly statement, apart from salaries (no attendance, overtime or SSC).
+     employees.data.board = {amount, tax} holds the monthly figures; a month's own figures go in payroll[ym].board[empId],
+     and an approved month keeps a snapshot in payroll[ym].board_rows. */
+  const boardMembers = () => S.employees.filter((e) => e.board && Number(e.board.amount) > 0);
+  function boardRows(ym) {
+    const p = S.payroll[ym] || {};
+    if (p.locked && Array.isArray(p.board_rows)) return p.board_rows;
+    return boardMembers().map((e) => {
+      const m = (p.board && p.board[e.id]) || {}, val = (v, d) => (v === undefined || v === '' || v === null ? Number(d) || 0 : Number(v) || 0);
+      const amount = r3(val(m.amount, e.board.amount)), tax = r3(val(m.tax, e.board.tax)), other = r3(val(m.other, 0));
+      return { emp_id: e.id, name: e.name, title: e.title || '', amount, tax, other, ded: r3(tax + other), net: r3(amount - tax - other), note: m.note || '' };
+    });
+  }
+  function boardCard(ym) {
+    const rows = boardRows(ym);
+    if (!rows.length) return '';
+    if (isPhone()) return sect('pay:board', 'عضوية مجلس الإدارة', recs(rows.map((r) => rec({ av: r.name, title: esc(shortName(r.name)), sub: esc(r.title) + ' · العضوية <span class="num">' + money(r.amount) + '</span>',
+      end: '<b class="num" style="color:var(--gold-ink)">' + money(r.net) + '</b><small>الصافي</small>', act: 'data-act="board-edit" data-v="' + esc(r.emp_id) + '"' }))), { open: true, flush: true });
+    return card('كشف عضوية مجلس الإدارة', '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>الاسم</th><th>الصفة</th><th class="n">عضوية مجلس الإدارة</th><th class="n">ضريبة الدخل</th><th class="n">اقتطاعات أخرى</th><th class="n">الصافي</th><th></th></tr></thead><tbody>' +
+      rows.map((r) => '<tr class="click" data-act="board-edit" data-v="' + esc(r.emp_id) + '"><td>' + esc(r.name) + '</td><td>' + esc(r.title || '—') + '</td><td class="n">' + money(r.amount) + '</td><td class="n">' + money(r.tax) + '</td><td class="n">' + money(r.other) + '</td><td class="n"><b>' + money(r.net) + '</b></td><td class="n"><button class="btn btn-sm" data-act="board-dl" data-v="' + esc(r.emp_id) + '">طباعة / PDF</button></td></tr>').join('') +
+      '</tbody></table></div>', { flush: true, note: 'كشف منفصل عن رواتب الموظفين: لا يدخل فيه الحضور ولا الإضافي ولا الضمان الاجتماعي. اضغط على الاسم لتعديل مبالغ هذا الشهر.' });
+  }
+  function boardForm(empId) {
+    const ym = UI.payMonth, p = S.payroll[ym] || {}, locked = !!p.locked;
+    const r = boardRows(ym).find((x) => x.emp_id === empId); if (!r) return;
+    const row = (l, v) => '<dt>' + l + '</dt><dd class="num">' + v + '</dd>';
+    const body = '<div class="slip"><div class="slip-h"><img src="' + MARK + '" alt=""><div><b>' + esc(S.settings.company_ar) + '</b><small>كشف صرف عضوية مجلس إدارة ' + esc(dMonth(ym)) + '</small></div></div>' +
+      '<div class="slip-b"><div><div class="sec-t">العضو</div><dl class="kv">' + row('الاسم', esc(r.name)) + row('الصفة', esc(r.title || '—')) + '</dl></div>' +
+      '<div><div class="sec-t">المستحقات</div><dl class="kv">' + row('عضوية مجلس الإدارة', money(r.amount)) + '</dl></div>' +
+      '<div><div class="sec-t">الاقتطاعات</div><dl class="kv">' + row('ضريبة الدخل', money(r.tax)) + row('اقتطاعات أخرى', money(r.other)) + '<dt class="tot">مجموع الاقتطاعات</dt><dd class="tot num">' + money(r.ded) + '</dd></dl></div>' +
+      '<div><div class="sec-t">الصافي</div><dl class="kv"><dt class="tot">صافي العضوية المصروفة (دينار أردني)</dt><dd class="tot num" style="font-size:1.25rem;color:var(--gold-ink)">' + money(r.net) + '</dd></dl><p class="note" style="margin:.5rem 0 0">فقط ' + esc(amountWordsJOD(r.net)) + ' لا غير</p></div></div></div>';
+    const fields = locked ? '<p class="note" style="margin:0">رواتب هذا الشهر معتمدة. ألغِ الاعتماد لتعديل المبالغ.</p>' :
+      '<div class="form-grid"><label class="field"><span>عضوية مجلس الإدارة (دينار)</span><input type="number" name="amount" step="0.001" min="0" value="' + esc(r.amount) + '"></label><label class="field"><span>ضريبة الدخل</span><input type="number" name="tax" step="0.001" min="0" value="' + esc(r.tax) + '"></label>' +
+      '<label class="field"><span>اقتطاعات أخرى</span><input type="number" name="other" step="0.001" min="0" value="' + esc(r.other || '') + '"></label><label class="field full"><span>ملاحظة على الكشف</span><input type="text" name="note" value="' + esc(r.note || '') + '"></label>' +
+      '<p class="note full" style="margin:0">التعديل هنا لهذا الشهر فقط. المبالغ الثابتة لكل شهر من صفحة الموظفين ← تعديل.</p></div>';
+    openModal({
+      title: 'كشف صرف عضوية مجلس إدارة — ' + esc(r.name), wide: true, body: body + fields,
+      submit: locked ? '' : 'حفظ',
+      footLeft: '<button type="button" class="btn" data-act="board-dl" data-v="' + esc(empId) + '">طباعة / PDF</button>',
+      onSubmit: async (v) => {
+        const doc = clean(S.payroll[ym] || { month: ym, adj: {} });
+        doc.month = ym; doc.board = doc.board || {};
+        doc.board[empId] = { amount: Number(v.amount) || 0, tax: Number(v.tax) || 0, other: Number(v.other) || 0, note: v.note || '' };
+        await put('payroll/' + ym, doc);
+        toast('حُفظ كشف ' + r.name);
+      },
+    });
+  }
   function renderPayroll() {
     const ym = UI.payMonth, p = S.payroll[ym], locked = !!(p && p.locked);
     ensureMonth(ym);
@@ -1530,6 +1578,7 @@ function amountWordsJOD(v) {
     out += card('كشف رواتب ' + esc(dMonth(ym)), tools + (zero ? '<div class="banner gold" style="margin-top:.8rem">بعض الموظفين بدون راتب أساسي. أدخل الرواتب من صفحة الموظفين ليُحسب الكشف.</div>' : ''), {}) + card('', tbl, { flush: true, note: '' });
     const how = '<ul class="note" style="margin:0;padding-inline-start:1.1rem;line-height:1.9"><li>الإجمالي = الأساسي + العلاوات + بدل الإضافي + المكافأة.</li><li>الغياب بدون إجازة ' + (S.settings.ded_absence ? 'يُخصم بأجر يوم لكل يوم' : 'لا يُخصم') + '، والإجازة بدون راتب ' + (S.settings.ded_unpaid ? 'تُخصم' : 'لا تُخصم') + '.</li><li>التأخير والخروج المبكر ' + (S.settings.ded_late ? 'يُخصمان بأجر الساعة' : 'يُسجّلان فقط ولا يُخصمان (يمكن تغيير ذلك من الإعدادات)') + '.</li><li>الضمان على (الأساسي + العلاوات) بحد أعلى <span class="num">' + money(S.settings.ssc_cap) + '</span> دينار.</li><li>المكافأة وضريبة الدخل والسلف تُدخل لكل موظف من كشف راتبه.</li></ul>';
     if (isPhone()) return payrollP(ym, p, locked, rows, sum, zero, cost, how);
+    out += boardCard(ym);
     out += '<div class="grid2">' + card('تكلفة الشهر على الشركة', cost) + card('كيف يُحسب', how) + '</div>';
     return out;
   }
@@ -1989,7 +2038,7 @@ function amountWordsJOD(v) {
     out += stats([['الإجمالي', money(sum('gross'))], ['الاقتطاعات', money(sum('ded'))], ['الصافي', money(sum('net')), 'gold']]);
     out += recs(rows.map((r) => rec({ av: r.name, title: esc(shortName(r.name)), sub: 'الإجمالي <span class="num">' + money(r.gross) + '</span> · الاقتطاعات <span class="num">' + money(r.ded) + '</span>',
       end: '<b class="num" style="color:var(--gold-ink)">' + money(r.net) + '</b><small>الصافي</small>', act: 'data-act="pay-slip" data-v="' + esc(r.emp_id) + '"' })));
-    return out + '<p class="note">اضغط على موظف لفتح كشف راتبه وإدخال المكافأة والسلف.</p>' + sect('pay:cost', 'تكلفة الشهر على الشركة', cost) + sect('pay:how', 'كيف يُحسب', how);
+    return out + '<p class="note">اضغط على موظف لفتح كشف راتبه وإدخال المكافأة والسلف.</p>' + boardCard(ym) + sect('pay:cost', 'تكلفة الشهر على الشركة', cost) + sect('pay:how', 'كيف يُحسب', how);
   }
   function clientsP(all, list, t, tools) {
     const n = (f) => all.filter(f).length, q = UI.clientQ.trim();
@@ -2235,6 +2284,7 @@ function amountWordsJOD(v) {
         '<label class="field"><span>الرصيد المدوّر (يوم)</span><input type="number" name="leave_open_balance" step="0.5" value="' + esc(e.leave_open_date ? (e.leave_open_balance ?? '') : '') + '"></label><label class="field"><span>الرصيد المدوّر كما في تاريخ</span><input type="date" name="leave_open_date" value="' + esc(e.leave_open_date || '') + '"></label>' +
         '<label class="field"><span>عمل خارجي دائم — من تاريخ</span><input type="date" name="field_from" value="' + esc(e.field_from || '') + '"></label><label class="field"><span>إلى تاريخ <small>(فارغ = مستمر)</small></span><input type="date" name="field_to" value="' + esc(e.field_to || '') + '"></label>' +
         '<p class="note full" style="margin:-.4rem 0 0">كل أيام الدوام بين التاريخين تُحسب «عمل خارجي» تلقائياً، دون تأخير أو غياب. الجمعة والعطل الرسمية تبقى عطلة. اتركهما فارغين للدوام العادي.</p>' +
+        '<label class="field"><span>عضوية مجلس إدارة — المبلغ الشهري <small>(كشف منفصل)</small></span><input type="number" name="board_amount" step="0.001" min="0" value="' + esc((e.board && e.board.amount) || '') + '"></label><label class="field"><span>ضريبة الدخل الشهرية على العضوية</span><input type="number" name="board_tax" step="0.001" min="0" value="' + esc((e.board && e.board.tax) || '') + '"></label>' +
         '<label class="field"><span>الهاتف</span><input type="tel" name="phone" value="' + esc(e.phone || '') + '"></label>' +
         '<label class="field"><span>الترتيب في القوائم</span><input type="number" name="order" min="0" value="' + esc(e.order || '') + '"></label>' +
         '<div class="field full" style="gap:.5rem"><label class="check"><input type="checkbox" name="ssc"' + (e.ssc !== false ? ' checked' : '') + '> مشترك بالضمان الاجتماعي</label><label class="check"><input type="checkbox" name="track"' + (e.track !== false ? ' checked' : '') + '> يخضع للبصمة والحضور</label><label class="check"><input type="checkbox" name="active"' + (e.active !== false ? ' checked' : '') + '> موظف فعّال</label></div>' +
@@ -2249,6 +2299,7 @@ function amountWordsJOD(v) {
         if (v.field_from && v.field_to && v.field_to < v.field_from) throw 'تاريخ نهاية العمل الخارجي قبل تاريخ بدايته.';
         const id = isNew ? newId('emp-') : e.id;
         const doc = { name: v.name, title: v.title || '', fp_id: fps.join(', '), hire_date: v.hire_date || '', basic_salary: Number(v.basic_salary) || 0, allowances: Number(v.allowances) || 0, carry: Number(e.carry) || 0, annual_days: Number(v.annual_days) || 0, leave_open_balance: v.leave_open_balance === '' ? 0 : Number(v.leave_open_balance) || 0, leave_open_date: v.leave_open_balance === '' && !v.leave_open_date ? '' : v.leave_open_date || todayStr(), field_from: v.field_from || '', field_to: v.field_from ? v.field_to || '' : '', phone: v.phone || '', order: Number(v.order) || (isNew ? S.employees.length + 1 : e.order || 0), ssc: !!v.ssc, track: !!v.track, active: !!v.active, notes: v.notes || '' };
+        if (Number(v.board_amount) > 0) doc.board = { amount: Number(v.board_amount), tax: Number(v.board_tax) || 0 };
         await put('employees/' + id, doc);
         toast('حُفظت بيانات ' + v.name);
       },
@@ -2607,12 +2658,37 @@ function amountWordsJOD(v) {
       '<p class="netw">فقط ' + esc(amountWordsJOD(r.net)) + ' لا غير</p>' +
       (r.note ? '<p class="pnote">ملاحظة: ' + esc(r.note) + '</p>' : '') +
       '<div class="sign"><div>توقيع الموظف</div><div>المحاسب</div><div>المدير العام</div></div>';
-    const css = '.lvdoc .num,.lvdoc .cols td{font-family:Arial,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}' +
+    return letterDoc(list.map(sheet), SLIP_CSS, 'كشف صادر من نظام الموارد البشرية');
+  }
+  const SLIP_CSS = '.lvdoc .num,.lvdoc .cols td{font-family:Arial,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}' +
       '.lvdoc .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}.lvdoc h3{margin:14px 0 2px;font-size:16px}' +
       '.lvdoc .cols th{background:#f5f2ea;font-weight:600;width:58%;EXACT}.lvdoc .cols .tot th,.lvdoc .cols .tot td{background:#26282C;color:#fff;font-weight:700;EXACT}' +
       '.lvdoc .net{margin-top:16px;border:2px solid #C9A24E;border-radius:6px;padding:10px 14px;display:flex;justify-content:space-between;font-size:18px;font-weight:700}' +
       '.lvdoc .netw{margin:6px 0 0;padding:8px 14px;border:1px solid #bfbab0;border-radius:6px;background:#faf7ef;font-weight:600;EXACT}.lvdoc .pnote{color:#444;margin:10px 0 0}';
-    return letterDoc(list.map(sheet), css, 'كشف صادر من نظام الموارد البشرية');
+  /* Board membership statement: one A4 page per member. */
+  function boardDoc(list, ym) {
+    const p = S.payroll[ym] || {};
+    const status = p.locked ? 'معتمد بتاريخ ' + dmy(String(p.locked_at || '').slice(0, 10) || todayStr()) : 'مسودة غير معتمدة';
+    const tr = (l, v, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><th>' + l + '</th><td>' + v + '</td></tr>';
+    const sheet = (r) => '<h2>كشف صرف عضوية مجلس إدارة</h2><p class="sub">الفترة: ' + esc(monthPeriod(ym)) + '</p>' +
+      '<div class="ref"><span>' + esc(status) + '</span><span>تاريخ الإصدار: ' + esc(issuedAt()) + '</span></div>' +
+      '<table class="info">' + tr('الاسم', esc(r.name)) + tr('الصفة', esc(r.title || '—')) + '</table>' +
+      '<div class="cols"><div><h3>المستحقات</h3><table>' + tr('عضوية مجلس الإدارة', money(r.amount)) + tr('إجمالي المستحقات', money(r.amount), 'tot') + '</table></div>' +
+      '<div><h3>الاقتطاعات</h3><table>' + tr('ضريبة الدخل', money(r.tax)) + (r.other ? tr('اقتطاعات أخرى', money(r.other)) : '') + tr('مجموع الاقتطاعات', money(r.ded), 'tot') + '</table></div></div>' +
+      '<div class="net"><span>صافي العضوية المصروفة</span><span><span class="num">' + money(r.net) + '</span> دينار أردني</span></div>' +
+      '<p class="netw">فقط ' + esc(amountWordsJOD(r.net)) + ' لا غير</p>' +
+      (r.note ? '<p class="pnote">ملاحظة: ' + esc(r.note) + '</p>' : '') +
+      '<div class="sign"><div>توقيع المستلم</div><div>المحاسب</div><div>الختم</div></div>';
+    return letterDoc(list.map(sheet), SLIP_CSS, 'كشف صادر من نظام الموارد البشرية');
+  }
+  function printBoard(empId) {
+    const ym = UI.payMonth, rows = boardRows(ym).filter((x) => !empId || x.emp_id === empId);
+    if (!rows.length) return;
+    previewDoc({
+      title: 'كشف صرف عضوية مجلس إدارة — ' + (rows.length === 1 ? rows[0].name + ' — ' : '') + dMonth(ym),
+      name: 'كشف-عضوية-مجلس-إدارة-' + (rows.length === 1 ? rows[0].name.replace(/\s+/g, '-') + '-' : '') + ym,
+      html: boardDoc(rows, ym),
+    });
   }
   /* Payslip preview (print / PDF / share): one employee, or everyone on the month's sheet. */
   function printSlips(empId) {
@@ -2790,15 +2866,17 @@ function amountWordsJOD(v) {
     'task-edit': (el) => taskForm(S.tasks.find((x) => x.id === el.dataset.id)),
     'task-del': (el) => confirmBox('حذف المهمة', 'ستُحذف المهمة نهائياً.', 'حذف', async () => { await del('tasks/' + el.dataset.id); toast('حُذفت المهمة'); }),
     'pay-slip': (el) => slipForm(el.dataset.v),
+    'board-edit': (el) => boardForm(el.dataset.v),
+    'board-dl': (el) => printBoard(el.dataset.v), // the nearest data-act wins, so the button in a row does not also open the row
     'slip-dl': (el) => printSlips(el.dataset.v),
     'slips-all': () => printSlips(''),
     'pay-lock': () => confirmBox('اعتماد رواتب ' + esc(dMonth(UI.payMonth)), 'سيُحفظ الكشف كما هو الآن ولن يتغير بتعديل الحضور لاحقاً. يمكنك إلغاء الاعتماد عند الحاجة.', 'اعتماد', async () => {
       const ym = UI.payMonth, doc = clean(S.payroll[ym] || { month: ym, adj: {} });
-      doc.month = ym; doc.locked = true; doc.locked_at = new Date().toISOString(); doc.rows = clean(payRows(ym));
+      doc.month = ym; doc.locked = true; doc.locked_at = new Date().toISOString(); doc.rows = clean(payRows(ym)); doc.board_rows = clean(boardRows(ym));
       await put('payroll/' + ym, doc); toast('اعتُمدت رواتب ' + dMonth(ym));
     }),
     'pay-unlock': async () => {
-      const ym = UI.payMonth, doc = clean(S.payroll[ym] || {}); doc.locked = false; delete doc.rows; delete doc.locked_at;
+      const ym = UI.payMonth, doc = clean(S.payroll[ym] || {}); doc.locked = false; delete doc.rows; delete doc.board_rows; delete doc.locked_at;
       try { await put('payroll/' + ym, doc); toast('أُلغي الاعتماد، والكشف يتحدث الآن مع الحضور'); } catch (e) { toast(dbMsg(e), true); }
     },
     'xlsx-pay': () => payrollXlsx(),

@@ -13,7 +13,7 @@ const stub = `(() => {
     payroll: [], attendance_days: [{ date: '2026-10-26', data: { rec: { 'emp-03': { mark: 'field', note: 'مهمة خارجية' } } } }], punches: [], bridge: [{ id: 'main', key: 'abc123', last_seen: new Date(Date.now() - 120000).toISOString(), device: 'office' }] };
   const names = ['المدير العام','موظف أول','موظف ثانٍ','موظف ثالث','موظفة رابعة','موظفة خامسة','موظفة سادسة'];
   names.forEach((n, i) => T.employees.push({ id: 'emp-0' + (i + 1), data: { annual_days: i === 1 ? 21 : 14, leave_open_balance: i === 1 ? 27 : 0, leave_open_date: '2026-10-31', name: n, title: i ? 'محاسب' : 'المدير العام', phone: i === 6 ? '' : '+962 7 9000 000' + (i + 1), fp_id: String(i + 1), basic_salary: [1000,600,600,600,500,500,500][i], allowances: 30, ssc: true, track: true, active: true, order: i + 1, hire_date: '2022-03-01' } }));
-  T.employees[6].data.field_from = '2026-10-28'; T.employees[6].data.field_to = '2026-12-31';
+  T.employees[6].data.field_from = '2026-10-28'; T.employees[6].data.field_to = '2026-12-31'; T.employees[0].data.board = { amount: 1200, tax: 40 }; // a board member: separate statement
   for (let i = 1; i <= 450; i++) T.clients.push({ id: 'cx' + i, data: { name: 'عميل ' + i + ' للاختبار', kind: i % 4 ? 'person' : 'company', tax_no: String(9000000 + i), employee_id: '', gst_cycle: '', income_tax: true } }); // an office-sized list of income-tax files
   let seed = 3; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   for (let d = 1; d <= 27; d++) { const ds = '2026-10-' + pad(d); const dw = new Date(ds + 'T00:00:00Z').getUTCDay(); if (dw === 5 && d !== 23) continue;
@@ -154,6 +154,20 @@ const stub = `(() => {
     await p.goto('http://app.local/#leaves'); await p.waitForTimeout(500);
     n = await sheets(() => document.querySelector('[data-act="leave-print"]').click());
     if (n !== 1) errs.push(label + ': leave form gave ' + n + ' sheets');
+    // board membership: its own statement, title and net in figures and words
+    await p.goto('http://app.local/#payroll'); await p.waitForTimeout(500);
+    const board = await p.evaluate(async () => {
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const row = document.querySelector('[data-act="board-edit"]');
+      if (!row) return { row: false };
+      row.click(); await wait(300);
+      document.querySelector('.modal [data-act="board-dl"]').click(); await wait(400);
+      const sheets = document.querySelectorAll('.doc-wrap .lvdoc > .sheet');
+      const txt = sheets[0] ? sheets[0].textContent : '';
+      document.querySelector('[data-act="modal-close"]').click();
+      return { row: true, n: sheets.length, title: txt.includes('كشف صرف عضوية مجلس إدارة'), net: txt.includes('1,160.000') && txt.includes('ألف ومئة وستون ديناراً أردنياً'), hourly: txt.includes('أجر الساعة') };
+    });
+    if (!board.row || board.n !== 1 || !board.title || !board.net || board.hourly) errs.push(label + ': board statement ' + JSON.stringify(board));
     // task reminders: the settings card, and its hour is kept in the settings
     await p.goto('http://app.local/#config'); await p.waitForTimeout(600);
     const rem = await p.evaluate(async () => {
